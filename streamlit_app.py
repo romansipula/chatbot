@@ -11,13 +11,12 @@ import fitz  # PyMuPDF
 import docx2txt
 from rag_utils import load_txt, load_pdf, load_docx, chunk_text, embed_chunks, build_faiss_index, search_index
 
-# Show title and description.
-st.title("💬 Chatbot")
-st.write(
-    "This is a simple chatbot that uses OpenAI's GPT-3.5 model to generate responses. "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
-    "You can also learn how to build this app step by step by [following our tutorial](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)."
-)
+# Professional HR Chatbot UI
+st.set_page_config(page_title="HR Support Chatbot", page_icon="💼", layout="centered")
+st.markdown("""
+# 💼 HR Support Chatbot
+Welcome to your HR assistant. Ask any questions about employee benefits, policies, leave, payroll, or other HR topics. Upload your HR handbook or policy documents in the sidebar to get answers based on your company's own information.
+""")
 
 # Try to get OpenAI API key from Streamlit secrets first
 openai_api_key = st.secrets.get("openai_api_key", "")
@@ -96,3 +95,44 @@ else:
         with st.chat_message("assistant"):
             response = st.write_stream(stream)
         st.session_state.messages.append({"role": "assistant", "content": response})
+
+# Add Telekom HR branding colors
+TELEKOM_PINK = "#e20074"
+TELEKOM_DARK = "#22223b"
+TELEKOM_LIGHT = "#f7f7fa"
+
+st.markdown(f"""
+    <style>
+    .stApp {{
+        background-color: {TELEKOM_LIGHT};
+    }}
+    .st-emotion-cache-1v0mbdj, .st-emotion-cache-1v0mbdj h1 {{
+        color: {TELEKOM_PINK} !important;
+    }}
+    .st-emotion-cache-1v0mbdj h1 {{
+        font-weight: 800;
+        letter-spacing: 1px;
+    }}
+    .st-emotion-cache-1v0mbdj p {{
+        color: {TELEKOM_DARK};
+    }}
+    .stChatMessage--user {{
+        background: {TELEKOM_PINK}10 !important;
+        border-left: 4px solid {TELEKOM_PINK} !important;
+    }}
+    .stChatMessage--assistant {{
+        background: white !important;
+        border-left: 4px solid {TELEKOM_DARK} !important;
+    }}
+    .stButton>button {{
+        background-color: {TELEKOM_PINK} !important;
+        color: white !important;
+        border-radius: 6px !important;
+        border: none !important;
+        font-weight: 600;
+    }}
+    .stSidebar {{
+        background-color: {TELEKOM_PINK}10 !important;
+    }}
+    </style>
+""", unsafe_allow_html=True)
