@@ -94,11 +94,39 @@ else:
             st.markdown(prompt)
         # RAG: Retrieve context if knowledge base is loaded
         context = ""
-        if st.session_state.get("rag_index") is not None:
+        # Custom logic: filter discount info for privacy
+        user_name = None
+        import re
+        # Try to extract the user's name from the prompt (e.g., "My name is John")
+        name_match = re.search(r"(?:my name is|i am|this is)\s+(\w+)", prompt, re.IGNORECASE)
+        if name_match:
+            user_name = name_match.group(1).capitalize()
+        # If asking about bicycle discount and a name is detected, filter context
+        if (
+            st.session_state.get("rag_index") is not None and
+            ("bicycle" in prompt.lower() or "discount" in prompt.lower()) and
+            user_name
+        ):
+            # Only include the discount line for the user's name
+            filtered_chunks = []
+            for chunk in st.session_state["rag_chunks"]:
+                lines = chunk.split("\n")
+                filtered = []
+                for line in lines:
+                    if user_name in line:
+                        filtered.append(line)
+                    elif ("discount" in line.lower() or "% off" in line) and user_name not in line:
+                        continue  # skip other names' discounts
+                    else:
+                        filtered.append(line)
+                filtered_chunks.append("\n".join(filtered))
+            top_chunks = search_index(prompt, st.session_state["embed_model"], st.session_state["rag_index"], filtered_chunks, top_k=3)
+            context = "\n".join(top_chunks)
+        elif st.session_state.get("rag_index") is not None:
             top_chunks = search_index(prompt, st.session_state["embed_model"], st.session_state["rag_index"], st.session_state["rag_chunks"], top_k=3)
             context = "\n".join(top_chunks)
         # Compose system prompt for LLM
-        system_prompt = "You are a helpful assistant. Use the following context to answer the user's question.\n" + context
+        system_prompt = "You are a helpful assistant. Use the following context to answer the user's question. Do not reveal discount information for other employees' names.\n" + context
         messages = [
             {"role": "system", "content": system_prompt},
             *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
