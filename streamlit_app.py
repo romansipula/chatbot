@@ -11,6 +11,10 @@ import fitz  # PyMuPDF
 import docx2txt
 from rag_utils import load_txt, load_pdf, load_docx, chunk_text, embed_chunks, build_faiss_index, search_index
 
+# Ensure Telekom HR CSS theme is applied globally
+with open("telekom_theme.css") as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
 # Professional HR Chatbot UI
 st.set_page_config(page_title="HR Support Chatbot", page_icon="💼", layout="centered")
 st.markdown("""
@@ -95,7 +99,3 @@ else:
         with st.chat_message("assistant"):
             response = st.write_stream(stream)
         st.session_state.messages.append({"role": "assistant", "content": response})
-
-# Inject Telekom HR CSS theme from external file
-with open("telekom_theme.css") as f:
-    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
