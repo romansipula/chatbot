@@ -66,7 +66,15 @@ else:
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
-        # Dummy response for now (replace with RAG/LLM logic as needed)
+        # Generate a response using the OpenAI API
+        stream = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": m["role"], "content": m["content"]}
+                for m in st.session_state.messages
+            ],
+            stream=True,
+        )
         with st.chat_message("assistant"):
-            st.markdown("I'm a bot! (RAG/LLM response goes here)")
-        st.session_state.messages.append({"role": "assistant", "content": "I'm a bot! (RAG/LLM response goes here)"})
+            response = st.write_stream(stream)
+        st.session_state.messages.append({"role": "assistant", "content": response})
