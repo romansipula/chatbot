@@ -8,3 +8,30 @@ Welcome to Telekom HR! Here are some key facts and policies:
 - Parental leave is available for up to 12 months.
 - Health insurance is provided to all full-time employees.
 - For more information, contact hr@telekom.com.
+
+## Special Employee Benefits
+
+Telekom offers a special discount on bicycles for employees. The discount depends on your first name:
+
+- John: 90% off
+- Peter: 50% off
+- Alice: 77% off
+- Maria: 65% off
+- David: 82% off
+- Linda: 59% off
+- Michael: 93% off
+- Sarah: 88% off
+- Robert: 54% off
+- Emma: 99% off
+- James: 73% off
+- Anna: 68% off
+- William: 91% off
+- Julia: 79% off
+- Richard: 62% off
+- Laura: 85% off
+- Thomas: 58% off
+- Sophie: 95% off
+- Daniel: 70% off
+- Eva: 97% off
+
+If your name is not listed, please contact HR for your personalized discount rate.
