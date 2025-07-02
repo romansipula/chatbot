@@ -58,4 +58,5 @@ else:
 
         if file_text:
             # Chunk and embed
+            st.success("File loaded successfully. (Chunking and embedding logic goes here.)")
    
