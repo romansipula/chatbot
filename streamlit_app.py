@@ -1,5 +1,15 @@
 import streamlit as st
 from openai import OpenAI
+import os
+import tempfile
+import numpy as np
+from sentence_transformers import SentenceTransformer
+import faiss
+import tiktoken
+import pandas as pd
+import fitz  # PyMuPDF
+import docx2txt
+from rag_utils import load_txt, load_pdf, load_docx, chunk_text, embed_chunks, build_faiss_index, search_index
 
 # Show title and description.
 st.title("💬 Chatbot")
@@ -30,27 +40,22 @@ else:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Create a chat input field to allow the user to enter a message. This will display
-    # automatically at the bottom of the page.
-    if prompt := st.chat_input("What is up?"):
+    # File uploader for knowledge source
+    st.sidebar.header("Knowledge Source (RAG)")
+    rag_file = st.sidebar.file_uploader("Upload a TXT, PDF, or DOCX file for RAG", type=["txt", "pdf", "docx"])
 
-        # Store and display the current prompt.
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+    if rag_file:
+        # Load file content
+        if rag_file.type == "text/plain":
+            file_text = load_txt(rag_file)
+        elif rag_file.type == "application/pdf":
+            file_text = load_pdf(rag_file)
+        elif rag_file.type in ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword"]:
+            file_text = load_docx(rag_file)
+        else:
+            st.error("Unsupported file type.")
+            file_text = None
 
-        # Generate a response using the OpenAI API.
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
-        )
-
-        # Stream the response to the chat using `st.write_stream`, then store it in 
-        # session state.
-        with st.chat_message("assistant"):
-            response = st.write_stream(stream)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+        if file_text:
+            # Chunk and embed
+   
