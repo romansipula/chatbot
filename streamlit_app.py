@@ -58,7 +58,18 @@ else:
 
         if file_text:
             # Chunk and embed
-            st.success("File loaded successfully. (Chunking and embedding logic goes here.)")
+            chunks = chunk_text(file_text)
+            if "embed_model" not in st.session_state:
+                st.session_state["embed_model"] = SentenceTransformer("all-MiniLM-L6-v2")
+            embeds = embed_chunks(chunks, st.session_state["embed_model"])
+            st.session_state["rag_chunks"] = chunks
+            st.session_state["rag_embeds"] = embeds
+            st.session_state["rag_index"] = build_faiss_index(np.array(embeds))
+            st.success(f"File loaded and indexed for RAG: {len(chunks)} chunks.")
+        else:
+            st.session_state["rag_chunks"] = None
+            st.session_state["rag_embeds"] = None
+            st.session_state["rag_index"] = None
 
     # --- Chat input and response logic ---
     prompt = st.chat_input("What is up?")
@@ -66,13 +77,20 @@ else:
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
-        # Generate a response using the OpenAI API
+        # RAG: Retrieve context if knowledge base is loaded
+        context = ""
+        if st.session_state.get("rag_index") is not None:
+            top_chunks = search_index(prompt, st.session_state["embed_model"], st.session_state["rag_index"], st.session_state["rag_chunks"], top_k=3)
+            context = "\n".join(top_chunks)
+        # Compose system prompt for LLM
+        system_prompt = "You are a helpful assistant. Use the following context to answer the user's question.\n" + context
+        messages = [
+            {"role": "system", "content": system_prompt},
+            *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
+        ]
         stream = client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
+            messages=messages,
             stream=True,
         )
         with st.chat_message("assistant"):
