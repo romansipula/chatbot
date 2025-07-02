@@ -1,2 +1,8 @@
 streamlit
 openai
+sentence-transformers
+faiss-cpu
+tiktoken
+pandas
+PyMuPDF
+docx2txt
