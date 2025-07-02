@@ -96,43 +96,6 @@ else:
             response = st.write_stream(stream)
         st.session_state.messages.append({"role": "assistant", "content": response})
 
-# Add Telekom HR branding colors
-TELEKOM_PINK = "#e20074"
-TELEKOM_DARK = "#22223b"
-TELEKOM_LIGHT = "#f7f7fa"
-
-st.markdown(f"""
-    <style>
-    .stApp {{
-        background-color: {TELEKOM_LIGHT};
-    }}
-    .st-emotion-cache-1v0mbdj, .st-emotion-cache-1v0mbdj h1 {{
-        color: {TELEKOM_PINK} !important;
-    }}
-    .st-emotion-cache-1v0mbdj h1 {{
-        font-weight: 800;
-        letter-spacing: 1px;
-    }}
-    .st-emotion-cache-1v0mbdj p {{
-        color: {TELEKOM_DARK};
-    }}
-    .stChatMessage--user {{
-        background: {TELEKOM_PINK}10 !important;
-        border-left: 4px solid {TELEKOM_PINK} !important;
-    }}
-    .stChatMessage--assistant {{
-        background: white !important;
-        border-left: 4px solid {TELEKOM_DARK} !important;
-    }}
-    .stButton>button {{
-        background-color: {TELEKOM_PINK} !important;
-        color: white !important;
-        border-radius: 6px !important;
-        border: none !important;
-        font-weight: 600;
-    }}
-    .stSidebar {{
-        background-color: {TELEKOM_PINK}10 !important;
-    }}
-    </style>
-""", unsafe_allow_html=True)
+# Inject Telekom HR CSS theme from external file
+with open("telekom_theme.css") as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
