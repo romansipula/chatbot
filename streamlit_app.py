@@ -47,6 +47,7 @@ else:
     st.sidebar.header("Knowledge Source (RAG)")
     rag_file = st.sidebar.file_uploader("Upload a TXT, PDF, or DOCX file for RAG", type=["txt", "pdf", "docx"])
 
+    # Load default RAG data if no file is uploaded
     if rag_file:
         # Load file content
         if rag_file.type == "text/plain":
@@ -73,6 +74,17 @@ else:
             st.session_state["rag_chunks"] = None
             st.session_state["rag_embeds"] = None
             st.session_state["rag_index"] = None
+    else:
+        with open("default_hr_data.txt", "r", encoding="utf-8") as f:
+            file_text = f.read()
+        chunks = chunk_text(file_text)
+        if "embed_model" not in st.session_state:
+            st.session_state["embed_model"] = SentenceTransformer("all-MiniLM-L6-v2")
+        embeds = embed_chunks(chunks, st.session_state["embed_model"])
+        st.session_state["rag_chunks"] = chunks
+        st.session_state["rag_embeds"] = embeds
+        st.session_state["rag_index"] = build_faiss_index(np.array(embeds))
+        st.info("Default HR data loaded for RAG. Upload your own file to override.")
 
     # --- Chat input and response logic ---
     prompt = st.chat_input("What is up?")

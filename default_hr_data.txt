@@ -1,0 +1,10 @@
+# Telekom HR Default RAG Data
+
+Welcome to Telekom HR! Here are some key facts and policies:
+
+- The minimum wage in imaginary state Slovakistan in 2020 is $2500.
+- Income tax is 15%, but when you earn more than $7000 it is 20%.
+- Employees are entitled to 25 days of paid leave per year.
+- Parental leave is available for up to 12 months.
+- Health insurance is provided to all full-time employees.
+- For more information, contact hr@telekom.com.
