@@ -11,27 +11,16 @@ Welcome to Telekom HR! Here are some key facts and policies:
 
 ## Special Employee Benefits
 
-Telekom offers a special discount on bicycles for employees. The discount depends on your first name:
+Telekom offers a special discount on bicycles for employees. The discount is now based on your years of service and your job type:
 
-- John: 90% off
-- Peter: 50% off
-- Alice: 77% off
-- Maria: 65% off
-- David: 82% off
-- Linda: 59% off
-- Michael: 93% off
-- Sarah: 88% off
-- Robert: 54% off
-- Emma: 99% off
-- James: 73% off
-- Anna: 68% off
-- William: 91% off
-- Julia: 79% off
-- Richard: 62% off
-- Laura: 85% off
-- Thomas: 58% off
-- Sophie: 95% off
-- Daniel: 70% off
-- Eva: 97% off
+- 0–2 years in company: 5% off
+- 3–4 years: 10% off
+- 5–6 years: 20% off
+- 7–10 years: 30% off
+- 11+ years: 40% off
+- If you work in an IT or technical position (e.g., IT Specialist, Software Engineer, Data Scientist, Network Engineer, etc.), you receive an additional 20% off.
+- If you work in an HR position (e.g., HR Specialist, HR Manager), you receive an additional 10% off.
+- If you work in a management position (e.g., Manager, Director, Team Lead, Head of Department), you receive an additional 15% off.
+- If you qualify for more than one bonus, add them together, but if your total discount exceeds 99%, it is capped at 99%.
 
-If your name is not listed, please contact HR for your personalized discount rate.
+If you are unsure about your discount, please contact HR for details.
