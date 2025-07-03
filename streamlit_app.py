@@ -115,14 +115,16 @@ else:
                 if not user_row.empty:
                     user_info = user_row.iloc[0]
                     user_is_hr = "hr" in user_info.Position.lower()
-            # Always build employee_context for LLM, but only show in UI if allowed
             name_matches = re.findall(r"([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
             shown_employees = set()
+            employee_context = ""
             for first, last in name_matches:
                 row = emp_db[(emp_db["FirstName"]==first) & (emp_db["LastName"]==last)]
                 if not row.empty and (first, last) not in shown_employees:
                     emp_info = row.iloc[0]
-                    employee_context += f"Employee Info for {emp_info.FirstName} {emp_info.LastName}:\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}\n"
+                    # Only include in context if HR or self
+                    if user_is_hr or (user_first == first and user_last == last):
+                        employee_context += f"Employee Info for {emp_info.FirstName} {emp_info.LastName}:\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}\n"
                     # Only show in UI if HR or self
                     if user_is_hr or (user_first == first and user_last == last):
                         st.markdown(f"**Employee Info:**\n- Name: {emp_info.FirstName} {emp_info.LastName}\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}")
