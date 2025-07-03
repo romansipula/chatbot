@@ -112,55 +112,71 @@ else:
                 employee_context += f"Employee Info for {emp_info.FirstName} {emp_info.LastName}:\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}\n"
                 st.markdown(f"**Employee Info:**\n- Name: {emp_info.FirstName} {emp_info.LastName}\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}")
                 shown_employees.add((first, last))
-        # --- Discount logic: ask for name if needed ---
+        # --- Discount logic: ask for name if needed, privacy restriction ---
         discount_keywords = ["bicycle discount", "bike discount", "discount for bicycle", "discount for bike"]
         if any(kw in prompt.lower() for kw in discount_keywords):
-            # Try to extract user's name
+            # Try to extract target name (the person discount is being asked for)
+            target_name_match = re.search(r"(?:for|about|of)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
+            # Try to extract user's own name
             user_name_match = re.search(r"(?:my name is|i am|this is)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
+            # If not found, ask for user's name
             if not user_name_match:
                 st.warning("To calculate your bicycle discount, please provide your full name (e.g., 'My name is John Smith').")
                 st.stop()
-            else:
-                first, last = user_name_match.group(1), user_name_match.group(2)
-                row = emp_db[(emp_db["FirstName"]==first) & (emp_db["LastName"]==last)]
-                if row.empty:
-                    st.warning(f"Sorry, we could not find an employee named {first} {last} in our records. Please check your name or contact HR.")
-                    st.stop()
-                emp_info = row.iloc[0]
-                # Calculate years in company
-                from datetime import datetime
-                try:
-                    start_date = pd.to_datetime(emp_info.FirstDay)
-                    today = pd.Timestamp(datetime.now().date())
-                    years = (today - start_date).days // 365
-                except Exception:
-                    years = 0
-                # Determine base discount
-                if years <= 2:
-                    base = 5
-                elif years <= 4:
-                    base = 10
-                elif years <= 6:
-                    base = 20
-                elif years <= 10:
-                    base = 30
-                else:
-                    base = 40
-                # Job type bonuses
-                position = emp_info.Position.lower()
-                bonus = 0
-                if any(x in position for x in ["it", "software", "engineer", "developer", "data", "network"]):
-                    bonus += 20
-                if "hr" in position:
-                    bonus += 10
-                if any(x in position for x in ["manager", "director", "lead", "head"]):
-                    bonus += 15
-                total_discount = base + bonus
-                if total_discount > 99:
-                    total_discount = 99
-                st.success(f"Your bicycle discount is {total_discount}% (base: {base}%, bonus: {bonus}% for your position: {emp_info.Position}, years in company: {years}).")
-                # Optionally, stop here to avoid LLM response
+            user_first, user_last = user_name_match.group(1), user_name_match.group(2)
+            user_row = emp_db[(emp_db["FirstName"]==user_first) & (emp_db["LastName"]==user_last)]
+            if user_row.empty:
+                st.warning(f"Sorry, we could not find an employee named {user_first} {user_last} in our records. Please check your name or contact HR.")
                 st.stop()
+            user_info = user_row.iloc[0]
+            user_is_hr = "hr" in user_info.Position.lower()
+            # Determine whose discount is being asked for
+            if target_name_match:
+                target_first, target_last = target_name_match.group(1), target_name_match.group(2)
+            else:
+                target_first, target_last = user_first, user_last
+            target_row = emp_db[(emp_db["FirstName"]==target_first) & (emp_db["LastName"]==target_last)]
+            if target_row.empty:
+                st.warning(f"Sorry, we could not find an employee named {target_first} {target_last} in our records. Please check the name or contact HR.")
+                st.stop()
+            # Privacy restriction: Only allow if user is HR or asking about themselves
+            if not user_is_hr and (user_first != target_first or user_last != target_last):
+                st.warning("For privacy reasons, you can only view your own bicycle discount. If you need information about another employee, please contact HR.")
+                st.stop()
+            emp_info = target_row.iloc[0]
+            # Calculate years in company
+            from datetime import datetime
+            try:
+                start_date = pd.to_datetime(emp_info.FirstDay)
+                today = pd.Timestamp(datetime.now().date())
+                years = (today - start_date).days // 365
+            except Exception:
+                years = 0
+            # Determine base discount
+            if years <= 2:
+                base = 5
+            elif years <= 4:
+                base = 10
+            elif years <= 6:
+                base = 20
+            elif years <= 10:
+                base = 30
+            else:
+                base = 40
+            # Job type bonuses
+            position = emp_info.Position.lower()
+            bonus = 0
+            if any(x in position for x in ["it", "software", "engineer", "developer", "data", "network"]):
+                bonus += 20
+            if "hr" in position:
+                bonus += 10
+            if any(x in position for x in ["manager", "director", "lead", "head"]):
+                bonus += 15
+            total_discount = base + bonus
+            if total_discount > 99:
+                total_discount = 99
+            st.success(f"Bicycle discount for {emp_info.FirstName} {emp_info.LastName}: {total_discount}% (base: {base}%, bonus: {bonus}% for position: {emp_info.Position}, years in company: {years}).")
+            st.stop()
         # RAG: Retrieve context if knowledge base is loaded
         context = ""
         user_name = None
