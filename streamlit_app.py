@@ -114,22 +114,6 @@ else:
             if not user_row.empty:
                 user_info = user_row.iloc[0]
                 user_is_hr = "hr" in user_info.Position.lower()
-        # --- Employee info extraction ---
-        name_matches = re.findall(r"([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
-        shown_employees = set()
-        for first, last in name_matches:
-            row = emp_db[(emp_db["FirstName"]==first) & (emp_db["LastName"]==last)]
-            if not row.empty and (first, last) not in shown_employees:
-                # Only block if user is not HR and is asking about someone else (not self)
-                if not user_is_hr and user_first and user_last and (user_first != first or user_last != last):
-                    st.warning("You are only allowed to view your own information. Please ask about yourself, or contact HR for information about others.")
-                    st.stop()
-                # Only show info if user is HR or is asking about self
-                if user_is_hr or (user_first == first and user_last == last):
-                    emp_info = row.iloc[0]
-                    employee_context += f"Employee Info for {emp_info.FirstName} {emp_info.LastName}:\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}\n"
-                    st.markdown(f"**Employee Info:**\n- Name: {emp_info.FirstName} {emp_info.LastName}\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}")
-                shown_employees.add((first, last))
         # --- Discount logic: always require user's name, enforce privacy strictly ---
         if any(kw in prompt.lower() for kw in discount_keywords):
             # Always require user's name
@@ -199,6 +183,22 @@ else:
                 total_discount = 99
             st.success(f"Bicycle discount for {emp_info.FirstName} {emp_info.LastName}: {total_discount}% (base: {base}%, bonus: {bonus}% for position: {emp_info.Position}, years in company: {years}).")
             st.stop()
+        # --- Employee info extraction ---
+        name_matches = re.findall(r"([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
+        shown_employees = set()
+        for first, last in name_matches:
+            row = emp_db[(emp_db["FirstName"]==first) & (emp_db["LastName"]==last)]
+            if not row.empty and (first, last) not in shown_employees:
+                # Only block if user is not HR and is asking about someone else (not self)
+                if not user_is_hr and user_first and user_last and (user_first != first or user_last != last):
+                    st.warning("You are only allowed to view your own information. Please ask about yourself, or contact HR for information about others.")
+                    st.stop()
+                # Only show info if user is HR or is asking about self
+                if user_is_hr or (user_first == first and user_last == last):
+                    emp_info = row.iloc[0]
+                    employee_context += f"Employee Info for {emp_info.FirstName} {emp_info.LastName}:\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}\n"
+                    st.markdown(f"**Employee Info:**\n- Name: {emp_info.FirstName} {emp_info.LastName}\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}")
+                shown_employees.add((first, last))
         # RAG: Retrieve context if knowledge base is loaded
         context = ""
         user_name = None
