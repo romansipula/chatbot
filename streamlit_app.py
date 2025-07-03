@@ -103,8 +103,20 @@ else:
         emp_db = st.session_state["employee_db"]
         # Always define employee_context
         employee_context = ""
-        # --- Discount logic: always require user's name, enforce privacy strictly ---
+        # Only run employee context extraction if not a discount query (to avoid double logic)
         discount_keywords = ["bicycle discount", "bike discount", "discount for bicycle", "discount for bike", "bike benefit", "bicycle benefit"]
+        if not any(kw in prompt.lower() for kw in discount_keywords):
+            # Find any Firstname Lastname in the prompt
+            name_matches = re.findall(r"([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
+            shown_employees = set()
+            for first, last in name_matches:
+                row = emp_db[(emp_db["FirstName"]==first) & (emp_db["LastName"]==last)]
+                if not row.empty and (first, last) not in shown_employees:
+                    emp_info = row.iloc[0]
+                    employee_context += f"Employee Info for {emp_info.FirstName} {emp_info.LastName}:\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}\n"
+                    st.markdown(f"**Employee Info:**\n- Name: {emp_info.FirstName} {emp_info.LastName}\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}")
+                    shown_employees.add((first, last))
+        # --- Discount logic: always require user's name, enforce privacy strictly ---
         if any(kw in prompt.lower() for kw in discount_keywords):
             # Always require user's name
             user_name_match = re.search(r"(?:my name is|i am|this is)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
