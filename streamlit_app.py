@@ -99,41 +99,39 @@ else:
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
-        # Employee DB lookup logic
         import re
         emp_db = st.session_state["employee_db"]
-        emp_match = re.search(r"(?:employee|person|colleague|myself|me|name is|who is)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
-        if emp_match:
-            first, last = emp_match.group(1), emp_match.group(2)
+        # Improved: Find any Firstname Lastname in the prompt
+        name_matches = re.findall(r"([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
+        employee_context = ""
+        shown_employees = set()
+        for first, last in name_matches:
             row = emp_db[(emp_db["FirstName"]==first) & (emp_db["LastName"]==last)]
-            if not row.empty:
+            if not row.empty and (first, last) not in shown_employees:
                 emp_info = row.iloc[0]
+                employee_context += f"Employee Info for {emp_info.FirstName} {emp_info.LastName}:\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}\n"
                 st.markdown(f"**Employee Info:**\n- Name: {emp_info.FirstName} {emp_info.LastName}\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}")
+                shown_employees.add((first, last))
         # RAG: Retrieve context if knowledge base is loaded
         context = ""
-        # Custom logic: filter discount info for privacy
         user_name = None
-        # Try to extract the user's name from the prompt (e.g., "My name is John")
         name_match = re.search(r"(?:my name is|i am|this is)\s+(\w+)", prompt, re.IGNORECASE)
         if name_match:
             user_name = name_match.group(1).capitalize()
-        # If asking about bicycle discount and a name is detected, filter context
         if (
             st.session_state.get("rag_index") is not None and
             ("bicycle" in prompt.lower() or "discount" in prompt.lower()) and
             user_name
         ):
-            # Only include the discount line for the user's name
             filtered_chunks = []
             for chunk in st.session_state["rag_chunks"]:
                 lines = chunk.split("\n")
                 filtered = []
                 for line in lines:
-                    # Only allow the discount line for the user's name, and always allow non-discount lines
                     if user_name in line and "% off" in line:
                         filtered.append(line)
                     elif "% off" in line:
-                        continue  # skip all other discount lines
+                        continue
                     else:
                         filtered.append(line)
                 filtered_chunks.append("\n".join(filtered))
@@ -142,8 +140,8 @@ else:
         elif st.session_state.get("rag_index") is not None:
             top_chunks = search_index(prompt, st.session_state["embed_model"], st.session_state["rag_index"], st.session_state["rag_chunks"], top_k=3)
             context = "\n".join(top_chunks)
-        # Compose system prompt for LLM
-        system_prompt = f"You are a helpful assistant. Use the following context to answer the user's question. Only reveal the bicycle discount for the user's name ({user_name if user_name else 'unknown'}), and do not reveal discounts for any other names.\n" + context
+        # Compose system prompt for LLM, now with employee info if found
+        system_prompt = f"You are a helpful assistant. Use the following context to answer the user's question. Only reveal the bicycle discount for the user's name ({user_name if user_name else 'unknown'}), and do not reveal discounts for any other names.\n" + employee_context + context
         messages = [
             {"role": "system", "content": system_prompt},
             *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
