@@ -120,13 +120,15 @@ else:
         for first, last in name_matches:
             row = emp_db[(emp_db["FirstName"]==first) & (emp_db["LastName"]==last)]
             if not row.empty and (first, last) not in shown_employees:
-                # Only allow info for self unless HR
-                if not user_is_hr and (user_first != first or user_last != last):
+                # Only block if user is not HR and is asking about someone else (not self)
+                if not user_is_hr and user_first and user_last and (user_first != first or user_last != last):
                     st.warning("You are only allowed to view your own information. Please ask about yourself, or contact HR for information about others.")
                     st.stop()
-                emp_info = row.iloc[0]
-                employee_context += f"Employee Info for {emp_info.FirstName} {emp_info.LastName}:\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}\n"
-                st.markdown(f"**Employee Info:**\n- Name: {emp_info.FirstName} {emp_info.LastName}\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}")
+                # Only show info if user is HR or is asking about self
+                if user_is_hr or (user_first == first and user_last == last):
+                    emp_info = row.iloc[0]
+                    employee_context += f"Employee Info for {emp_info.FirstName} {emp_info.LastName}:\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}\n"
+                    st.markdown(f"**Employee Info:**\n- Name: {emp_info.FirstName} {emp_info.LastName}\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}")
                 shown_employees.add((first, last))
         # --- Discount logic: always require user's name, enforce privacy strictly ---
         if any(kw in prompt.lower() for kw in discount_keywords):
