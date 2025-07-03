@@ -105,7 +105,8 @@ else:
         employee_context = ""
         discount_keywords = ["bicycle discount", "bike discount", "discount for bicycle", "discount for bike", "bike benefit", "bicycle benefit"]
         # --- Extract user identity from prompt ---
-        user_name_match = re.search(r"(?:my name is|i am|this is)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
+        # Expanded regex to match: my name is, i am, i'm, im, this is
+        user_name_match = re.search(r"(?:my name is|i am|i'm|im|this is)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt, re.IGNORECASE)
         user_first = user_last = None
         user_is_hr = False
         if user_name_match:
@@ -116,8 +117,8 @@ else:
                 user_is_hr = "hr" in user_info.Position.lower()
         # --- Discount logic: always require user's name, enforce privacy strictly ---
         if any(kw in prompt.lower() for kw in discount_keywords):
-            # Always require user's name
-            user_name_match = re.search(r"(?:my name is|i am|this is)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
+            # Always require user's name (expanded regex)
+            user_name_match = re.search(r"(?:my name is|i am|i'm|im|this is)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt, re.IGNORECASE)
             if not user_name_match:
                 st.warning("To calculate your bicycle discount, please provide your full name (e.g., 'My name is John Smith').")
                 st.stop()
