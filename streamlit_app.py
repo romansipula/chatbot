@@ -106,7 +106,6 @@ else:
         # Only run employee context extraction if not a discount query (to avoid double logic)
         discount_keywords = ["bicycle discount", "bike discount", "discount for bicycle", "discount for bike", "bike benefit", "bicycle benefit"]
         if not any(kw in prompt.lower() for kw in discount_keywords):
-            # Try to extract user's own name
             user_name_match = re.search(r"(?:my name is|i am|this is)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
             user_first = user_last = None
             user_is_hr = False
@@ -116,88 +115,80 @@ else:
                 if not user_row.empty:
                     user_info = user_row.iloc[0]
                     user_is_hr = "hr" in user_info.Position.lower()
-            # Only show info for self or HR, and only if prompt is about self or user is HR
-            if user_is_hr:
-                # HR can see info for any mentioned name
-                name_matches = re.findall(r"([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
-                shown_employees = set()
-                for first, last in name_matches:
-                    row = emp_db[(emp_db["FirstName"]==first) & (emp_db["LastName"]==last)]
-                    if not row.empty and (first, last) not in shown_employees:
-                        emp_info = row.iloc[0]
-                        employee_context += f"Employee Info for {emp_info.FirstName} {emp_info.LastName}:\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}\n"
+            # Always build employee_context for LLM, but only show in UI if allowed
+            name_matches = re.findall(r"([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
+            shown_employees = set()
+            for first, last in name_matches:
+                row = emp_db[(emp_db["FirstName"]==first) & (emp_db["LastName"]==last)]
+                if not row.empty and (first, last) not in shown_employees:
+                    emp_info = row.iloc[0]
+                    employee_context += f"Employee Info for {emp_info.FirstName} {emp_info.LastName}:\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}\n"
+                    # Only show in UI if HR or self
+                    if user_is_hr or (user_first == first and user_last == last):
                         st.markdown(f"**Employee Info:**\n- Name: {emp_info.FirstName} {emp_info.LastName}\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}")
-                        shown_employees.add((first, last))
-            elif user_first and user_last:
-                # Non-HR: only show info if prompt is about self
-                if re.search(rf"\b{user_first}\s+{user_last}\b", prompt):
-                    row = emp_db[(emp_db["FirstName"]==user_first) & (emp_db["LastName"]==user_last)]
-                    if not row.empty:
-                        emp_info = row.iloc[0]
-                        employee_context += f"Employee Info for {emp_info.FirstName} {emp_info.LastName}:\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}\n"
-                        st.markdown(f"**Employee Info:**\n- Name: {emp_info.FirstName} {emp_info.LastName}\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}")
-        # --- Discount logic: always require user's name, enforce privacy strictly ---
-        if any(kw in prompt.lower() for kw in discount_keywords):
-            # Always require user's name
-            user_name_match = re.search(r"(?:my name is|i am|this is)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
-            if not user_name_match:
-                st.warning("To calculate your bicycle discount, please provide your full name (e.g., 'My name is John Smith').")
-                st.stop()
-            user_first, user_last = user_name_match.group(1), user_name_match.group(2)
-            user_row = emp_db[(emp_db["FirstName"]==user_first) & (emp_db["LastName"]==user_last)]
-            if user_row.empty:
-                st.warning(f"Sorry, we could not find an employee named {user_first} {user_last} in our records. Please check your name or contact HR.")
-                st.stop()
-            user_info = user_row.iloc[0]
-            user_is_hr = "hr" in user_info.Position.lower()
-            # Only allow discount for self unless user is HR
-            if not user_is_hr:
-                target_first, target_last = user_first, user_last
-            else:
-                # HR can specify another name, but must use: for/about/of Firstname Lastname
-                target_name_match = re.search(r"(?:for|about|of)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
-                if target_name_match:
-                    target_first, target_last = target_name_match.group(1), target_name_match.group(2)
-                else:
+                    shown_employees.add((first, last))
+            # --- Discount logic: always require user's name, enforce privacy strictly ---
+            if any(kw in prompt.lower() for kw in discount_keywords):
+                # Always require user's name
+                user_name_match = re.search(r"(?:my name is|i am|this is)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
+                if not user_name_match:
+                    st.warning("To calculate your bicycle discount, please provide your full name (e.g., 'My name is John Smith').")
+                    st.stop()
+                user_first, user_last = user_name_match.group(1), user_name_match.group(2)
+                user_row = emp_db[(emp_db["FirstName"]==user_first) & (emp_db["LastName"]==user_last)]
+                if user_row.empty:
+                    st.warning(f"Sorry, we could not find an employee named {user_first} {user_last} in our records. Please check your name or contact HR.")
+                    st.stop()
+                user_info = user_row.iloc[0]
+                user_is_hr = "hr" in user_info.Position.lower()
+                # Only allow discount for self unless user is HR
+                if not user_is_hr:
                     target_first, target_last = user_first, user_last
-            target_row = emp_db[(emp_db["FirstName"]==target_first) & (emp_db["LastName"]==target_last)]
-            if target_row.empty:
-                st.warning(f"Sorry, we could not find an employee named {target_first} {target_last} in our records. Please check the name or contact HR.")
+                else:
+                    # HR can specify another name, but must use: for/about/of Firstname Lastname
+                    target_name_match = re.search(r"(?:for|about|of)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
+                    if target_name_match:
+                        target_first, target_last = target_name_match.group(1), target_name_match.group(2)
+                    else:
+                        target_first, target_last = user_first, user_last
+                target_row = emp_db[(emp_db["FirstName"]==target_first) & (emp_db["LastName"]==target_last)]
+                if target_row.empty:
+                    st.warning(f"Sorry, we could not find an employee named {target_first} {target_last} in our records. Please check the name or contact HR.")
+                    st.stop()
+                emp_info = target_row.iloc[0]
+                # Calculate years in company
+                from datetime import datetime
+                try:
+                    start_date = pd.to_datetime(emp_info.FirstDay)
+                    today = pd.Timestamp(datetime.now().date())
+                    years = (today - start_date).days // 365
+                except Exception:
+                    years = 0
+                # Determine base discount
+                if years <= 2:
+                    base = 5
+                elif years <= 4:
+                    base = 10
+                elif years <= 6:
+                    base = 20
+                elif years <= 10:
+                    base = 30
+                else:
+                    base = 40
+                # Job type bonuses
+                position = emp_info.Position.lower()
+                bonus = 0
+                if any(x in position for x in ["it", "software", "engineer", "developer", "data", "network"]):
+                    bonus += 20
+                if "hr" in position:
+                    bonus += 10
+                if any(x in position for x in ["manager", "director", "lead", "head"]):
+                    bonus += 15
+                total_discount = base + bonus
+                if total_discount > 99:
+                    total_discount = 99
+                st.success(f"Bicycle discount for {emp_info.FirstName} {emp_info.LastName}: {total_discount}% (base: {base}%, bonus: {bonus}% for position: {emp_info.Position}, years in company: {years}).")
                 st.stop()
-            emp_info = target_row.iloc[0]
-            # Calculate years in company
-            from datetime import datetime
-            try:
-                start_date = pd.to_datetime(emp_info.FirstDay)
-                today = pd.Timestamp(datetime.now().date())
-                years = (today - start_date).days // 365
-            except Exception:
-                years = 0
-            # Determine base discount
-            if years <= 2:
-                base = 5
-            elif years <= 4:
-                base = 10
-            elif years <= 6:
-                base = 20
-            elif years <= 10:
-                base = 30
-            else:
-                base = 40
-            # Job type bonuses
-            position = emp_info.Position.lower()
-            bonus = 0
-            if any(x in position for x in ["it", "software", "engineer", "developer", "data", "network"]):
-                bonus += 20
-            if "hr" in position:
-                bonus += 10
-            if any(x in position for x in ["manager", "director", "lead", "head"]):
-                bonus += 15
-            total_discount = base + bonus
-            if total_discount > 99:
-                total_discount = 99
-            st.success(f"Bicycle discount for {emp_info.FirstName} {emp_info.LastName}: {total_discount}% (base: {base}%, bonus: {bonus}% for position: {emp_info.Position}, years in company: {years}).")
-            st.stop()
         # RAG: Retrieve context if knowledge base is loaded
         context = ""
         user_name = None
