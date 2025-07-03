@@ -64,7 +64,7 @@ else:
             # Chunk and embed
             chunks = chunk_text(file_text)
             if "embed_model" not in st.session_state:
-                st.session_state["embed_model"] = SentenceTransformer("all-MiniLM-L6-v2")
+                st.session_state["embed_model"] = SentenceTransformer("all-MiniLM-L6-v2", device='cpu')
             embeds = embed_chunks(chunks, st.session_state["embed_model"])
             st.session_state["rag_chunks"] = chunks
             st.session_state["rag_embeds"] = embeds
@@ -79,7 +79,7 @@ else:
             file_text = f.read()
         chunks = chunk_text(file_text)
         if "embed_model" not in st.session_state:
-            st.session_state["embed_model"] = SentenceTransformer("all-MiniLM-L6-v2")
+            st.session_state["embed_model"] = SentenceTransformer("all-MiniLM-L6-v2", device='cpu')
         embeds = embed_chunks(chunks, st.session_state["embed_model"])
         st.session_state["rag_chunks"] = chunks
         st.session_state["rag_embeds"] = embeds
