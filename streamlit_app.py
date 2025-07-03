@@ -113,10 +113,11 @@ else:
                 lines = chunk.split("\n")
                 filtered = []
                 for line in lines:
-                    if user_name in line:
+                    # Only allow the discount line for the user's name, and always allow non-discount lines
+                    if user_name in line and "% off" in line:
                         filtered.append(line)
-                    elif ("discount" in line.lower() or "% off" in line) and user_name not in line:
-                        continue  # skip other names' discounts
+                    elif "% off" in line:
+                        continue  # skip all other discount lines
                     else:
                         filtered.append(line)
                 filtered_chunks.append("\n".join(filtered))
@@ -126,7 +127,7 @@ else:
             top_chunks = search_index(prompt, st.session_state["embed_model"], st.session_state["rag_index"], st.session_state["rag_chunks"], top_k=3)
             context = "\n".join(top_chunks)
         # Compose system prompt for LLM
-        system_prompt = "You are a helpful assistant. Use the following context to answer the user's question. Do not reveal discount information for other employees' names.\n" + context
+        system_prompt = f"You are a helpful assistant. Use the following context to answer the user's question. Only reveal the bicycle discount for the user's name ({user_name if user_name else 'unknown'}), and do not reveal discounts for any other names.\n" + context
         messages = [
             {"role": "system", "content": system_prompt},
             *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
