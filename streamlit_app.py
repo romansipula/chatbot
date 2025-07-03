@@ -101,25 +101,11 @@ else:
             st.markdown(prompt)
         import re
         emp_db = st.session_state["employee_db"]
-        # Improved: Find any Firstname Lastname in the prompt
-        name_matches = re.findall(r"([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
-        employee_context = ""
-        shown_employees = set()
-        for first, last in name_matches:
-            row = emp_db[(emp_db["FirstName"]==first) & (emp_db["LastName"]==last)]
-            if not row.empty and (first, last) not in shown_employees:
-                emp_info = row.iloc[0]
-                employee_context += f"Employee Info for {emp_info.FirstName} {emp_info.LastName}:\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}\n"
-                st.markdown(f"**Employee Info:**\n- Name: {emp_info.FirstName} {emp_info.LastName}\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}")
-                shown_employees.add((first, last))
-        # --- Discount logic: ask for name if needed, privacy restriction ---
-        discount_keywords = ["bicycle discount", "bike discount", "discount for bicycle", "discount for bike"]
+        # --- Discount logic: always require user's name, enforce privacy strictly ---
+        discount_keywords = ["bicycle discount", "bike discount", "discount for bicycle", "discount for bike", "bike benefit", "bicycle benefit"]
         if any(kw in prompt.lower() for kw in discount_keywords):
-            # Try to extract target name (the person discount is being asked for)
-            target_name_match = re.search(r"(?:for|about|of)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
-            # Try to extract user's own name
+            # Always require user's name
             user_name_match = re.search(r"(?:my name is|i am|this is)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
-            # If not found, ask for user's name
             if not user_name_match:
                 st.warning("To calculate your bicycle discount, please provide your full name (e.g., 'My name is John Smith').")
                 st.stop()
@@ -130,18 +116,19 @@ else:
                 st.stop()
             user_info = user_row.iloc[0]
             user_is_hr = "hr" in user_info.Position.lower()
-            # Determine whose discount is being asked for
-            if target_name_match:
-                target_first, target_last = target_name_match.group(1), target_name_match.group(2)
-            else:
+            # Only allow discount for self unless user is HR
+            if not user_is_hr:
                 target_first, target_last = user_first, user_last
+            else:
+                # HR can specify another name, but must use: for/about/of Firstname Lastname
+                target_name_match = re.search(r"(?:for|about|of)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
+                if target_name_match:
+                    target_first, target_last = target_name_match.group(1), target_name_match.group(2)
+                else:
+                    target_first, target_last = user_first, user_last
             target_row = emp_db[(emp_db["FirstName"]==target_first) & (emp_db["LastName"]==target_last)]
             if target_row.empty:
                 st.warning(f"Sorry, we could not find an employee named {target_first} {target_last} in our records. Please check the name or contact HR.")
-                st.stop()
-            # Privacy restriction: Only allow if user is HR or asking about themselves
-            if not user_is_hr and (user_first != target_first or user_last != target_last):
-                st.warning("For privacy reasons, you can only view your own bicycle discount. If you need information about another employee, please contact HR.")
                 st.stop()
             emp_info = target_row.iloc[0]
             # Calculate years in company
