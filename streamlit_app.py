@@ -86,17 +86,33 @@ else:
         st.session_state["rag_index"] = build_faiss_index(np.array(embeds))
         st.info("Default HR data loaded for RAG. Upload your own file to override.")
 
+    # Load mock employee DB into session state
+    @st.cache_data
+    def load_employee_db():
+        df = pd.read_csv("mock_employee_db.csv", comment="#", names=["FirstName","LastName","DOB","FirstDay","Position"], skiprows=4)
+        return df
+    st.session_state["employee_db"] = load_employee_db()
+
     # --- Chat input and response logic ---
     prompt = st.chat_input("What is up?")
     if prompt:
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
+        # Employee DB lookup logic
+        import re
+        emp_db = st.session_state["employee_db"]
+        emp_match = re.search(r"(?:employee|person|colleague|myself|me|name is|who is)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
+        if emp_match:
+            first, last = emp_match.group(1), emp_match.group(2)
+            row = emp_db[(emp_db["FirstName"]==first) & (emp_db["LastName"]==last)]
+            if not row.empty:
+                emp_info = row.iloc[0]
+                st.markdown(f"**Employee Info:**\n- Name: {emp_info.FirstName} {emp_info.LastName}\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}")
         # RAG: Retrieve context if knowledge base is loaded
         context = ""
         # Custom logic: filter discount info for privacy
         user_name = None
-        import re
         # Try to extract the user's name from the prompt (e.g., "My name is John")
         name_match = re.search(r"(?:my name is|i am|this is)\s+(\w+)", prompt, re.IGNORECASE)
         if name_match:
