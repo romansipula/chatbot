@@ -101,6 +101,8 @@ else:
             st.markdown(prompt)
         import re
         emp_db = st.session_state["employee_db"]
+        # Always define employee_context
+        employee_context = ""
         # --- Discount logic: always require user's name, enforce privacy strictly ---
         discount_keywords = ["bicycle discount", "bike discount", "discount for bicycle", "discount for bike", "bike benefit", "bicycle benefit"]
         if any(kw in prompt.lower() for kw in discount_keywords):
