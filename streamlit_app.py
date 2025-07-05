@@ -232,9 +232,10 @@ else:
         user_question = prompt
         context = get_context_from_pinecone(user_question, top_k=3)
         # Compose system prompt for LLM, now with employee info if found
-        system_prompt = f"You are a helpful assistant. Use the following context to answer the user's question. Only reveal the bicycle discount for the user's name ({user_name if user_name else 'unknown'}), and do not reveal discounts for any other names.\n" + employee_context + context
+        system_prompt = f"You are a helpful assistant. Use the following context to answer the user's question. Only reveal the bicycle discount for the user's name ({user_name if user_name else 'unknown'}), and do not reveal discounts for any other names.\n" + employee_context
         messages = [
             {"role": "system", "content": system_prompt},
+            {"role": "assistant", "content": f"Context:\n{context}"},
             *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
         ]
         stream = client.chat.completions.create(
