@@ -1,0 +1,42 @@
+/* Telekom HR Chatbot Custom Styles */
+:root {
+  --telekom-pink: #e20074;
+  --telekom-dark: #22223b;
+  --telekom-light: #f7f7fa;
+}
+
+body, .stApp {
+  background-color: var(--telekom-light) !important;
+}
+
+h1, .st-emotion-cache-1v0mbdj h1 {
+  color: var(--telekom-pink) !important;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.st-emotion-cache-1v0mbdj p {
+  color: var(--telekom-dark) !important;
+}
+
+.stChatMessage--user {
+  background: #e2007410 !important;
+  border-left: 4px solid var(--telekom-pink) !important;
+}
+
+.stChatMessage--assistant {
+  background: white !important;
+  border-left: 4px solid var(--telekom-dark) !important;
+}
+
+.stButton>button {
+  background-color: var(--telekom-pink) !important;
+  color: white !important;
+  border-radius: 6px !important;
+  border: none !important;
+  font-weight: 600;
+}
+
+.stSidebar {
+  background-color: #e2007410 !important;
+}
