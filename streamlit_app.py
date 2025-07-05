@@ -216,12 +216,9 @@ else:
         if name_match:
             user_name = name_match.group(1).capitalize()
         
-        # Use Pinecone for context retrieval
-        try:
-            context = get_context_from_pinecone(prompt, top_k=3)
-        except Exception as e:
-            st.warning(f"Could not retrieve context from Pinecone: {e}")
-            context = ""
+        # Retrieve relevant context from Pinecone
+        user_question = prompt
+        context = get_context_from_pinecone(user_question, top_k=3)
         # Compose system prompt for LLM, now with employee info if found
         system_prompt = f"You are a helpful assistant. Use the following context to answer the user's question. Only reveal the bicycle discount for the user's name ({user_name if user_name else 'unknown'}), and do not reveal discounts for any other names.\n" + employee_context + context
         messages = [
