@@ -10,6 +10,9 @@ import pandas as pd
 import fitz  # PyMuPDF
 import docx2txt
 from rag_utils import load_txt, load_pdf, load_docx, chunk_text, embed_chunks, build_faiss_index, search_index
+import pinecone
+from langchain_pinecone import PineconeVectorStore
+from langchain_openai import OpenAIEmbeddings
 
 # Ensure Telekom HR CSS theme is applied globally
 with open("telekom_theme.css") as f:
@@ -32,6 +35,19 @@ else:
 
     # Create an OpenAI client.
     client = OpenAI(api_key=openai_api_key)
+
+    # Initialize Pinecone
+    pinecone.init(
+        api_key=st.secrets["PINECONE_API_KEY"],
+        environment=st.secrets["PINECONE_ENVIRONMENT"]
+    )
+
+    # Connect to Pinecone vector store
+    vectorstore = PineconeVectorStore(
+        index_name=st.secrets["PINECONE_INDEX_NAME"],
+        namespace="employees",
+        embedding=OpenAIEmbeddings()
+    )
 
     # Create a session state variable to store the chat messages. This ensures that the
     # messages persist across reruns.
