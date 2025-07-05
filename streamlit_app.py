@@ -63,6 +63,18 @@ else:
 
     # File uploader for knowledge source
     st.sidebar.header("Knowledge Source (RAG)")
+    
+    # Pinecone connection health check
+    if st.sidebar.button("Test Pinecone Connection"):
+        try:
+            results = vectorstore.similarity_search("test connection", k=1)
+            if results:
+                st.sidebar.success(f"✅ Pinecone OK: found {len(results)} documents")
+            else:
+                st.sidebar.warning("⚠️ Pinecone OK but no documents found")
+        except Exception as e:
+            st.sidebar.error(f"❌ Pinecone connection failed: {e}")
+    
     rag_file = st.sidebar.file_uploader("Upload a TXT, PDF, or DOCX file for RAG", type=["txt", "pdf", "docx"])
 
     # Load default RAG data if no file is uploaded
