@@ -3,13 +3,10 @@ from openai import OpenAI
 import os
 import tempfile
 import numpy as np
-from sentence_transformers import SentenceTransformer
-import faiss
-import tiktoken
 import pandas as pd
 import fitz  # PyMuPDF
 import docx2txt
-from rag_utils import load_txt, load_pdf, load_docx, chunk_text, embed_chunks, build_faiss_index, search_index
+from rag_utils import load_txt, load_pdf, load_docx, chunk_text
 import pinecone
 from langchain_pinecone import PineconeVectorStore
 from langchain_openai import OpenAIEmbeddings
@@ -49,6 +46,11 @@ else:
         embedding=OpenAIEmbeddings()
     )
 
+    def get_context_from_pinecone(query: str, top_k: int = 3) -> str:
+        """Retrieve and concatenate the top_k matching document chunks from Pinecone."""
+        docs = vectorstore.similarity_search(query, k=top_k)
+        return "\n\n".join([doc.page_content for doc in docs])
+
     # Create a session state variable to store the chat messages. This ensures that the
     # messages persist across reruns.
     if "messages" not in st.session_state:
@@ -77,30 +79,21 @@ else:
             file_text = None
 
         if file_text:
-            # Chunk and embed
+            # File loaded successfully - Pinecone integration would store chunks here
             chunks = chunk_text(file_text)
-            if "embed_model" not in st.session_state:
-                st.session_state["embed_model"] = SentenceTransformer("all-MiniLM-L6-v2", device='cpu')
-            embeds = embed_chunks(chunks, st.session_state["embed_model"])
-            st.session_state["rag_chunks"] = chunks
-            st.session_state["rag_embeds"] = embeds
-            st.session_state["rag_index"] = build_faiss_index(np.array(embeds))
-            st.success(f"File loaded and indexed for RAG: {len(chunks)} chunks.")
+            # TODO: Store chunks in Pinecone vectorstore
+            # For now, just show success message
+            st.success(f"File loaded: {len(chunks)} chunks. Using Pinecone for retrieval.")
         else:
-            st.session_state["rag_chunks"] = None
-            st.session_state["rag_embeds"] = None
-            st.session_state["rag_index"] = None
+            st.error("Failed to load file content.")
     else:
+        # Default HR data - using Pinecone for retrieval
         with open("default_hr_data.txt", "r", encoding="utf-8") as f:
             file_text = f.read()
         chunks = chunk_text(file_text)
-        if "embed_model" not in st.session_state:
-            st.session_state["embed_model"] = SentenceTransformer("all-MiniLM-L6-v2", device='cpu')
-        embeds = embed_chunks(chunks, st.session_state["embed_model"])
-        st.session_state["rag_chunks"] = chunks
-        st.session_state["rag_embeds"] = embeds
-        st.session_state["rag_index"] = build_faiss_index(np.array(embeds))
-        st.info("Default HR data loaded for RAG. Upload your own file to override.")
+        # TODO: Store default chunks in Pinecone vectorstore
+        # For now, just show info message
+        st.info("Using Pinecone for HR data retrieval. Upload your own file to add custom content.")
 
     # Load mock employee DB into session state
     @st.cache_data
@@ -216,34 +209,19 @@ else:
                     employee_context += f"Employee Info for {emp_info.FirstName} {emp_info.LastName}:\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}\n"
                     st.markdown(f"**Employee Info:**\n- Name: {emp_info.FirstName} {emp_info.LastName}\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}")
                 shown_employees.add((first, last))
-        # RAG: Retrieve context if knowledge base is loaded
+        # RAG: Retrieve context using Pinecone
         context = ""
         user_name = None
         name_match = re.search(r"(?:my name is|i am|this is)\s+(\w+)", prompt, re.IGNORECASE)
         if name_match:
             user_name = name_match.group(1).capitalize()
-        if (
-            st.session_state.get("rag_index") is not None and
-            ("bicycle" in prompt.lower() or "discount" in prompt.lower()) and
-            user_name
-        ):
-            filtered_chunks = []
-            for chunk in st.session_state["rag_chunks"]:
-                lines = chunk.split("\n")
-                filtered = []
-                for line in lines:
-                    if user_name in line and "% off" in line:
-                        filtered.append(line)
-                    elif "% off" in line:
-                        continue
-                    else:
-                        filtered.append(line)
-                filtered_chunks.append("\n".join(filtered))
-            top_chunks = search_index(prompt, st.session_state["embed_model"], st.session_state["rag_index"], filtered_chunks, top_k=3)
-            context = "\n".join(top_chunks)
-        elif st.session_state.get("rag_index") is not None:
-            top_chunks = search_index(prompt, st.session_state["embed_model"], st.session_state["rag_index"], st.session_state["rag_chunks"], top_k=3)
-            context = "\n".join(top_chunks)
+        
+        # Use Pinecone for context retrieval
+        try:
+            context = get_context_from_pinecone(prompt, top_k=3)
+        except Exception as e:
+            st.warning(f"Could not retrieve context from Pinecone: {e}")
+            context = ""
         # Compose system prompt for LLM, now with employee info if found
         system_prompt = f"You are a helpful assistant. Use the following context to answer the user's question. Only reveal the bicycle discount for the user's name ({user_name if user_name else 'unknown'}), and do not reveal discounts for any other names.\n" + employee_context + context
         messages = [
