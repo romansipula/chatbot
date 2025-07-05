@@ -1,7 +1,9 @@
 streamlit
 openai
-sentence-transformers
-faiss-cpu
+pinecone-client
+langchain
+langchain-openai
+langchain-pinecone
 tiktoken
 pandas
 PyMuPDF
