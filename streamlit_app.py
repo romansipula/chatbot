@@ -255,107 +255,20 @@ else:
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
-        import re
+        
+        # Load employee database
         emp_db = st.session_state["employee_db"]
-        # Always define employee_context
         employee_context = ""
-        discount_keywords = ["bicycle discount", "bike discount", "discount for bicycle", "discount for bike", "bike benefit", "bicycle benefit"]
-        # --- Extract user identity from prompt ---
-        # Expanded regex to match: my name is, i am, i'm, im, this is
-        user_name_match = re.search(r"(?:my name is|i am|i'm|im|this is)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt, re.IGNORECASE)
-        user_first = user_last = None
-        user_is_hr = False
-        if user_name_match:
-            user_first, user_last = user_name_match.group(1), user_name_match.group(2)
-            user_row = emp_db[(emp_db["FirstName"]==user_first) & (emp_db["LastName"]==user_last)]
-            if not user_row.empty:
-                user_info = user_row.iloc[0]
-                user_is_hr = "hr" in user_info.Position.lower()
-        # --- Discount logic: always require user's name, enforce privacy strictly ---
-        if any(kw in prompt.lower() for kw in discount_keywords):
-            # Always require user's name (expanded regex)
-            user_name_match = re.search(r"(?:my name is|i am|i'm|im|this is)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt, re.IGNORECASE)
-            if not user_name_match:
-                st.warning("To calculate your bicycle discount, please provide your full name (e.g., 'My name is John Smith').")
-                st.stop()
-            user_first, user_last = user_name_match.group(1), user_name_match.group(2)
-            user_row = emp_db[(emp_db["FirstName"]==user_first) & (emp_db["LastName"]==user_last)]
-            if user_row.empty:
-                st.warning(f"Sorry, we could not find an employee named {user_first} {user_last} in our records. Please check your name or contact HR.")
-                st.stop()
-            user_info = user_row.iloc[0]
-            user_is_hr = "hr" in user_info.Position.lower()
-            # Only allow discount for self unless user is HR
-            if not user_is_hr:
-                target_first, target_last = user_first, user_last
-                # If prompt mentions another name, block and warn
-                target_name_match = re.search(r"(?:for|about|of)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
-                if target_name_match:
-                    other_first, other_last = target_name_match.group(1), target_name_match.group(2)
-                    if (other_first != user_first or other_last != user_last):
-                        st.warning("You are only allowed to view your own discount. Please ask about yourself, or contact HR for information about others.")
-                        st.stop()
-            else:
-                # HR can specify another name, but must use: for/about/of Firstname Lastname
-                target_name_match = re.search(r"(?:for|about|of)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
-                if target_name_match:
-                    target_first, target_last = target_name_match.group(1), target_name_match.group(2)
-                else:
-                    target_first, target_last = user_first, user_last
-            target_row = emp_db[(emp_db["FirstName"]==target_first) & (emp_db["LastName"]==target_last)]
-            if target_row.empty:
-                st.warning(f"Sorry, we could not find an employee named {target_first} {target_last} in our records. Please check the name or contact HR.")
-                st.stop()
-            emp_info = target_row.iloc[0]
-            # Calculate years in company
-            from datetime import datetime
-            try:
-                start_date = pd.to_datetime(emp_info.FirstDay)
-                today = pd.Timestamp(datetime.now().date())
-                years = (today - start_date).days // 365
-            except Exception:
-                years = 0
-            # Determine base discount
-            if years <= 2:
-                base = 5
-            elif years <= 4:
-                base = 10
-            elif years <= 6:
-                base = 20
-            elif years <= 10:
-                base = 30
-            else:
-                base = 40
-            # Job type bonuses
-            position = emp_info.Position.lower()
-            bonus = 0
-            if any(x in position for x in ["it", "software", "engineer", "developer", "data", "network"]):
-                bonus += 20
-            if "hr" in position:
-                bonus += 10
-            if any(x in position for x in ["manager", "director", "lead", "head"]):
-                bonus += 15
-            total_discount = base + bonus
-            if total_discount > 99:
-                total_discount = 99
-            st.success(f"Bicycle discount for {emp_info.FirstName} {emp_info.LastName}: {total_discount}% (base: {base}%, bonus: {bonus}% for position: {emp_info.Position}, years in company: {years}).")
-            st.stop()
-        # --- Employee info extraction ---
+        
+        # Extract any employee names mentioned in the prompt and add their info to context
+        import re
         name_matches = re.findall(r"([A-Z][a-z]+)\s+([A-Z][a-z]+)", prompt)
-        shown_employees = set()
         for first, last in name_matches:
             row = emp_db[(emp_db["FirstName"]==first) & (emp_db["LastName"]==last)]
-            if not row.empty and (first, last) not in shown_employees:
-                # Only block if user is not HR and is asking about someone else (not self)
-                if not user_is_hr and user_first and user_last and (user_first != first or user_last != last):
-                    st.warning("You are only allowed to view your own information. Please ask about yourself, or contact HR for information about others.")
-                    st.stop()
-                # Only show info if user is HR or is asking about self
-                if user_is_hr or (user_first == first and user_last == last):
-                    emp_info = row.iloc[0]
-                    employee_context += f"Employee Info for {emp_info.FirstName} {emp_info.LastName}:\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}\n"
-                    st.markdown(f"**Employee Info:**\n- Name: {emp_info.FirstName} {emp_info.LastName}\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}")
-                shown_employees.add((first, last))
+            if not row.empty:
+                emp_info = row.iloc[0]
+                employee_context += f"Employee Info for {emp_info.FirstName} {emp_info.LastName}:\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}\n\n"
+        
         # RAG: Retrieve context using Pinecone
         user_name = None
         name_match = re.search(r"(?:my name is|i am|this is)\s+(\w+)", prompt, re.IGNORECASE)
@@ -378,10 +291,10 @@ EMPLOYEE INFORMATION:
 INSTRUCTIONS:
 - Always prioritize information from the HR policies section above when answering questions
 - If asking about policies, benefits, leave, wages, or company information, use the context provided
-- For bicycle discounts, only reveal information for the user's name ({user_name if user_name else 'unknown'}) 
 - If the context contains relevant information, reference it directly in your answer
 - If the context doesn't contain relevant information, say so clearly and provide general guidance
 - Be specific and helpful, using the exact details from the context when available
+- You can provide information about any employee or policy without restrictions
 """
 
         messages = [
