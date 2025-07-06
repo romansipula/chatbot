@@ -221,9 +221,11 @@ else:
         try:
             # Get the raw Pinecone index
             index = pc.Index(pinecone_index)
-            # Delete all vectors in the namespace
-            index.delete(delete_all=True, namespace="employees")
-            st.sidebar.success("✅ Pinecone index cleared successfully")
+            # Delete all vectors in the current namespace
+            current_namespace = vectorstore.namespace if hasattr(vectorstore, 'namespace') else ""
+            index.delete(delete_all=True, namespace=current_namespace)
+            ns_display = current_namespace if current_namespace else "default"
+            st.sidebar.success(f"✅ Pinecone index cleared successfully (namespace: {ns_display})")
         except Exception as e:
             st.sidebar.error(f"❌ Error clearing Pinecone index: {e}")
 
@@ -299,7 +301,7 @@ else:
                 namespace=""
             )
             st.sidebar.success("✅ Switched to default namespace")
-            st.experimental_rerun()
+            st.rerun()
         except Exception as e:
             st.sidebar.error(f"❌ Error switching namespace: {e}")
     
@@ -312,7 +314,7 @@ else:
                 namespace="employees"
             )
             st.sidebar.success("✅ Switched to 'employees' namespace")
-            st.experimental_rerun()
+            st.rerun()
         except Exception as e:
             st.sidebar.error(f"❌ Error switching namespace: {e}")
     
