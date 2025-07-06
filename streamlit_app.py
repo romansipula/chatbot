@@ -55,6 +55,18 @@ Welcome to your HR assistant. Ask any questions about employee benefits, policie
 
 # DEBUG: Let's see what's actually available in secrets
 st.markdown("## 🔍 DEBUG: Secrets Detection")
+
+# Detect environment
+import platform
+st.write("**Environment Information:**")
+st.write(f"- Platform: {platform.system()}")
+st.write(f"- Python version: {platform.python_version()}")
+st.write(f"- Current working directory: {os.getcwd()}")
+
+# Check if running on Streamlit Cloud
+is_streamlit_cloud = os.getenv("STREAMLIT_SHARING_MODE") or "streamlit.io" in os.getenv("HOSTNAME", "")
+st.write(f"- Running on Streamlit Cloud: {is_streamlit_cloud}")
+
 try:
     st.write("Secrets available:", hasattr(st, 'secrets'))
     if hasattr(st, 'secrets'):
