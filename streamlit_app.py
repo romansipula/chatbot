@@ -7,7 +7,7 @@ import pandas as pd
 import fitz  # PyMuPDF
 import docx2txt
 from rag_utils import load_txt, load_pdf, load_docx, chunk_text
-import pinecone
+from pinecone import Pinecone
 from langchain_pinecone import PineconeVectorStore
 from langchain_openai import OpenAIEmbeddings
 
@@ -34,16 +34,16 @@ else:
     client = OpenAI(api_key=openai_api_key)
 
     # Initialize Pinecone
-    pinecone.init(
-        api_key=st.secrets.get("PINECONE_API_KEY") or os.getenv("PINECONE_API_KEY"),
-        environment=st.secrets.get("PINECONE_ENVIRONMENT") or os.getenv("PINECONE_ENVIRONMENT")
+    pc = Pinecone(
+        api_key=st.secrets.get("PINECONE_API_KEY") or os.getenv("PINECONE_API_KEY")
     )
 
     # Connect to Pinecone vector store
     vectorstore = PineconeVectorStore(
         index_name=st.secrets.get("PINECONE_INDEX_NAME") or os.getenv("PINECONE_INDEX_NAME"),
         namespace="employees",
-        embedding=OpenAIEmbeddings()
+        embedding=OpenAIEmbeddings(),
+        pinecone_index=pc.Index(st.secrets.get("PINECONE_INDEX_NAME") or os.getenv("PINECONE_INDEX_NAME"))
     )
 
     def get_context_from_pinecone(query: str, top_k: int = 3) -> str:
