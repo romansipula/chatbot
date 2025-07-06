@@ -34,7 +34,11 @@ else:
     client = OpenAI(api_key=openai_api_key)
 
     # Initialize Pinecone with proper API key handling
-    pinecone_api_key = st.secrets.get("PINECONE_API_KEY") or os.getenv("PINECONE_API_KEY")
+    try:
+        pinecone_api_key = st.secrets["PINECONE_API_KEY"]
+    except KeyError:
+        pinecone_api_key = os.getenv("PINECONE_API_KEY")
+    
     if not pinecone_api_key:
         st.error("❌ Pinecone API key not found. Please set PINECONE_API_KEY in your environment or Streamlit secrets.")
         st.stop()
@@ -42,7 +46,11 @@ else:
     pc = Pinecone(api_key=pinecone_api_key)
 
     # Connect to Pinecone vector store
-    index_name = st.secrets.get("PINECONE_INDEX_NAME") or os.getenv("PINECONE_INDEX_NAME")
+    try:
+        index_name = st.secrets["PINECONE_INDEX_NAME"]
+    except KeyError:
+        index_name = os.getenv("PINECONE_INDEX_NAME")
+    
     if not index_name:
         st.error("❌ Pinecone index name not found. Please set PINECONE_INDEX_NAME in your environment or Streamlit secrets.")
         st.stop()
