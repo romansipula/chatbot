@@ -121,8 +121,25 @@ else:
 
     def get_context_from_pinecone(query: str, top_k: int = 3) -> str:
         """Retrieve and concatenate the top_k matching document chunks from Pinecone."""
-        docs = vectorstore.similarity_search(query, k=top_k)
-        return "\n\n".join([doc.page_content for doc in docs])
+        try:
+            docs = vectorstore.similarity_search(query, k=top_k)
+            context = "\n\n".join([doc.page_content for doc in docs])
+            
+            # Debug: Show what context was retrieved (temporary)
+            if docs:
+                st.sidebar.success(f"📄 Pinecone OK: found {len(docs)} documents")
+                # Show first 100 chars of context for debugging
+                if context.strip():
+                    st.sidebar.info(f"📋 Context preview: {context[:100]}...")
+                else:
+                    st.sidebar.warning("⚠️ Documents found but context is empty")
+            else:
+                st.sidebar.warning("⚠️ No documents found in Pinecone for this query")
+                
+            return context
+        except Exception as e:
+            st.sidebar.error(f"❌ Error retrieving from Pinecone: {e}")
+            return ""
 
     def populate_pinecone_if_empty():
         """Populate Pinecone with default HR data if the index is empty."""
@@ -340,7 +357,6 @@ else:
                     st.markdown(f"**Employee Info:**\n- Name: {emp_info.FirstName} {emp_info.LastName}\n- DOB: {emp_info.DOB}\n- First Day: {emp_info.FirstDay}\n- Position: {emp_info.Position}")
                 shown_employees.add((first, last))
         # RAG: Retrieve context using Pinecone
-        context = ""
         user_name = None
         name_match = re.search(r"(?:my name is|i am|this is)\s+(\w+)", prompt, re.IGNORECASE)
         if name_match:
@@ -349,11 +365,27 @@ else:
         # Retrieve relevant context from Pinecone
         user_question = prompt
         context = get_context_from_pinecone(user_question, top_k=3)
-        # Compose system prompt for LLM, now with employee info if found
-        system_prompt = f"You are a helpful assistant. Use the following context to answer the user's question. Only reveal the bicycle discount for the user's name ({user_name if user_name else 'unknown'}), and do not reveal discounts for any other names.\n" + employee_context
+        
+        # Enhanced system prompt to better utilize Pinecone context
+        system_prompt = f"""You are a helpful HR assistant for Telekom. Use the following context to answer the user's question accurately and helpfully.
+
+HR POLICIES AND INFORMATION:
+{context}
+
+EMPLOYEE INFORMATION:
+{employee_context}
+
+INSTRUCTIONS:
+- Always prioritize information from the HR policies section above when answering questions
+- If asking about policies, benefits, leave, wages, or company information, use the context provided
+- For bicycle discounts, only reveal information for the user's name ({user_name if user_name else 'unknown'}) 
+- If the context contains relevant information, reference it directly in your answer
+- If the context doesn't contain relevant information, say so clearly and provide general guidance
+- Be specific and helpful, using the exact details from the context when available
+"""
+
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "assistant", "content": f"Context:\n{context}"},
             *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
         ]
         stream = client.chat.completions.create(
