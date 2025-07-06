@@ -125,14 +125,22 @@ else:
             docs = vectorstore.similarity_search(query, k=top_k)
             context = "\n\n".join([doc.page_content for doc in docs])
             
-            # Debug: Show what context was retrieved (temporary)
+            # Debug: Show what context was retrieved (detailed debugging)
             if docs:
                 st.sidebar.success(f"📄 Pinecone OK: found {len(docs)} documents")
-                # Show first 100 chars of context for debugging
+                
+                # Show detailed context for debugging
                 if context.strip():
-                    st.sidebar.info(f"📋 Context preview: {context[:100]}...")
+                    st.sidebar.info(f"📋 Context preview: {context[:200]}...")
+                    # Show full context in an expandable section
+                    with st.sidebar.expander("🔍 Full Retrieved Context"):
+                        st.text(context)
                 else:
                     st.sidebar.warning("⚠️ Documents found but context is empty")
+                    
+                # Show individual document content
+                for i, doc in enumerate(docs):
+                    st.sidebar.write(f"**Doc {i+1}:** {doc.page_content[:100]}...")
             else:
                 st.sidebar.warning("⚠️ No documents found in Pinecone for this query")
                 
@@ -151,14 +159,33 @@ else:
                 with open("default_hr_data.txt", "r", encoding="utf-8") as f:
                     default_text = f.read()
                 
+                st.sidebar.info(f"📄 Default HR data loaded: {len(default_text)} characters")
+                
                 chunks = chunk_text(default_text)
                 if chunks:
+                    st.sidebar.info(f"📋 Split into {len(chunks)} chunks")
+                    
+                    # Show first chunk for debugging
+                    st.sidebar.info(f"📝 First chunk preview: {chunks[0][:100]}...")
+                    
                     # Add documents to Pinecone
                     from langchain.schema import Document
                     documents = [Document(page_content=chunk) for chunk in chunks]
                     vectorstore.add_documents(documents)
                     st.sidebar.success(f"✅ Populated Pinecone with {len(chunks)} HR document chunks")
+                    
+                    # Verify the data was added
+                    verify_docs = vectorstore.similarity_search("bicycle", k=1)
+                    if verify_docs:
+                        st.sidebar.success(f"✅ Verification: Found bicycle-related content")
+                    else:
+                        st.sidebar.warning("⚠️ Verification: No bicycle content found after adding")
+                    
                     return True
+                else:
+                    st.sidebar.error("❌ No chunks created from default HR data")
+            else:
+                st.sidebar.info(f"📄 Pinecone already has {len(test_docs)} documents")
             return False
         except Exception as e:
             st.sidebar.error(f"❌ Error populating Pinecone: {e}")
@@ -202,6 +229,25 @@ else:
                 st.sidebar.warning("⚠️ Pinecone OK but no documents found")
         except Exception as e:
             st.sidebar.error(f"❌ Pinecone connection failed: {e}")
+    
+    # Check what's actually in Pinecone
+    if st.sidebar.button("Show All Pinecone Data"):
+        try:
+            # Try to get all documents with a broad search
+            all_docs = vectorstore.similarity_search("telekom hr policy benefits", k=10)
+            if all_docs:
+                st.sidebar.success(f"✅ Found {len(all_docs)} documents in Pinecone")
+                with st.sidebar.expander("📋 All Pinecone Documents"):
+                    for i, doc in enumerate(all_docs):
+                        st.write(f"**Document {i+1}:**")
+                        st.text(doc.page_content)
+                        st.write("---")
+            else:
+                st.sidebar.warning("⚠️ No documents found in Pinecone")
+                # If no documents, check if we need to populate
+                st.sidebar.info("🔄 Try clicking 'Populate Pinecone with Default HR Data' first")
+        except Exception as e:
+            st.sidebar.error(f"❌ Error checking Pinecone data: {e}")
     
     rag_file = st.sidebar.file_uploader("Upload a TXT, PDF, or DOCX file for RAG", type=["txt", "pdf", "docx"])
 
