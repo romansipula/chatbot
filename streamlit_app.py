@@ -23,7 +23,7 @@ Welcome to your HR assistant. Ask any questions about employee benefits, policie
 """)
 
 # Try to get OpenAI API key from Streamlit secrets first
-openai_api_key = st.secrets.get("openai_api_key", "")
+openai_api_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
 if not openai_api_key:
     openai_api_key = st.text_input("OpenAI API Key", type="password")
 if not openai_api_key:
@@ -33,32 +33,35 @@ else:
     # Create an OpenAI client.
     client = OpenAI(api_key=openai_api_key)
 
-    # Initialize Pinecone with proper API key handling
-    try:
-        pinecone_api_key = st.secrets["PINECONE_API_KEY"]
-    except KeyError:
-        pinecone_api_key = os.getenv("PINECONE_API_KEY")
-    
-    if not pinecone_api_key:
-        st.error("❌ Pinecone API key not found. Please set PINECONE_API_KEY in your environment or Streamlit secrets.")
-        st.stop()
-    
-    pc = Pinecone(api_key=pinecone_api_key)
+    # Load credentials from Streamlit secrets or environment
+    pinecone_api_key = st.secrets.get("PINECONE_API_KEY") or os.getenv("PINECONE_API_KEY")
+    pinecone_env     = st.secrets.get("PINECONE_ENVIRONMENT") or os.getenv("PINECONE_ENVIRONMENT")
+    pinecone_index   = st.secrets.get("PINECONE_INDEX_NAME") or os.getenv("PINECONE_INDEX_NAME")
 
-    # Connect to Pinecone vector store
-    try:
-        index_name = st.secrets["PINECONE_INDEX_NAME"]
-    except KeyError:
-        index_name = os.getenv("PINECONE_INDEX_NAME")
-    
-    if not index_name:
-        st.error("❌ Pinecone index name not found. Please set PINECONE_INDEX_NAME in your environment or Streamlit secrets.")
+    if not pinecone_api_key or not pinecone_env or not pinecone_index:
+        st.error("❌ Pinecone credentials not found. Set PINECONE_API_KEY, PINECONE_ENVIRONMENT, and PINECONE_INDEX_NAME in your environment or Streamlit secrets.")
         st.stop()
-    
+
+    from pinecone import Pinecone, ServerlessSpec
+    from langchain_pinecone import PineconeVectorStore
+    from langchain_openai import OpenAIEmbeddings
+
+    # Initialize Pinecone client and index
+    pc = Pinecone(api_key=pinecone_api_key)
+    if pinecone_index not in pc.list_indexes().names():
+        pc.create_index(
+            name=pinecone_index,
+            dimension=1536,
+            metric="cosine",
+            spec=ServerlessSpec(cloud="aws", region=pinecone_env)
+        )
+    index = pc.Index(pinecone_index)
+
+    # Connect LangChain vector store
     vectorstore = PineconeVectorStore(
-        index_name=index_name,
-        namespace="employees",
-        embedding=OpenAIEmbeddings()
+        index=index,
+        embedding=OpenAIEmbeddings(),
+        namespace="employees"
     )
 
     def get_context_from_pinecone(query: str, top_k: int = 3) -> str:
@@ -97,7 +100,7 @@ else:
     if st.sidebar.button("Clear Pinecone Index", type="secondary"):
         try:
             # Get the raw Pinecone index
-            index = pc.Index(index_name)
+            index = pc.Index(pinecone_index)
             # Delete all vectors in the namespace
             index.delete(delete_all=True, namespace="employees")
             st.sidebar.success("✅ Pinecone index cleared successfully")
