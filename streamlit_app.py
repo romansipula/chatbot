@@ -110,11 +110,11 @@ else:
 
     # Connect LangChain vector store
     try:
-        # First try with default namespace (empty string)
+        # Try default namespace first, then fall back to empty string
         vectorstore = PineconeVectorStore(
             index=index,
             embedding=OpenAIEmbeddings(api_key=openai_api_key),
-            namespace=""  # Try default namespace first
+            namespace="default"  # Your data is in the 'default' namespace
         )
         st.sidebar.success("✅ Connected to Pinecone (default namespace)")
     except Exception as e:
@@ -130,7 +130,7 @@ else:
             st.sidebar.json(stats)
             
             # Try searching in different namespaces
-            namespaces_to_try = ["", "employees", "default"]
+            namespaces_to_try = ["default", "", "employees"]
             for ns in namespaces_to_try:
                 try:
                     test_vectorstore = PineconeVectorStore(
@@ -139,7 +139,7 @@ else:
                         namespace=ns
                     )
                     results = test_vectorstore.similarity_search("test", k=1)
-                    ns_display = ns if ns else "default"
+                    ns_display = ns if ns else "empty"
                     if results:
                         st.sidebar.success(f"✅ Found {len(results)} docs in namespace '{ns_display}'")
                     else:
@@ -191,7 +191,7 @@ else:
                 st.sidebar.warning("⚠️ No documents found in current namespace")
                 
                 # Try checking other namespaces
-                namespaces_to_try = ["", "employees", "default"]
+                namespaces_to_try = ["default", "", "employees"]
                 for ns in namespaces_to_try:
                     try:
                         test_vectorstore = PineconeVectorStore(
@@ -200,7 +200,7 @@ else:
                             namespace=ns
                         )
                         ns_docs = test_vectorstore.similarity_search("test", k=1)
-                        ns_display = ns if ns else "default"
+                        ns_display = ns if ns else "empty"
                         if ns_docs:
                             st.sidebar.info(f"📄 Found {len(ns_docs)} docs in namespace '{ns_display}'")
                     except Exception:
@@ -292,15 +292,15 @@ else:
             st.sidebar.error(f"❌ Error retrieving Pinecone data: {e}")
     
     # Add namespace switcher
-    if st.sidebar.button("Switch to Default Namespace"):
+    if st.sidebar.button("Switch to Empty Namespace"):
         try:
-            # Reinitialize vectorstore with default namespace
+            # Reinitialize vectorstore with empty namespace
             vectorstore = PineconeVectorStore(
                 index=index,
                 embedding=OpenAIEmbeddings(api_key=openai_api_key),
                 namespace=""
             )
-            st.sidebar.success("✅ Switched to default namespace")
+            st.sidebar.success("✅ Switched to empty namespace")
             st.rerun()
         except Exception as e:
             st.sidebar.error(f"❌ Error switching namespace: {e}")
