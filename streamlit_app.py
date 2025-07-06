@@ -53,53 +53,6 @@ st.markdown("""
 Welcome to your HR assistant. Ask any questions about employee benefits, policies, leave, payroll, or other HR topics. Upload your HR handbook or policy documents in the sidebar to get answers based on your company's own information.
 """)
 
-# DEBUG: Let's see what's actually available in secrets
-st.markdown("## 🔍 DEBUG: Secrets Detection")
-
-# Detect environment
-import platform
-st.write("**Environment Information:**")
-st.write(f"- Platform: {platform.system()}")
-st.write(f"- Python version: {platform.python_version()}")
-st.write(f"- Current working directory: {os.getcwd()}")
-
-# Check if running on Streamlit Cloud
-is_streamlit_cloud = os.getenv("STREAMLIT_SHARING_MODE") or "streamlit.io" in os.getenv("HOSTNAME", "")
-st.write(f"- Running on Streamlit Cloud: {is_streamlit_cloud}")
-
-try:
-    st.write("Secrets available:", hasattr(st, 'secrets'))
-    if hasattr(st, 'secrets'):
-        st.write("Testing direct access to individual secrets:")
-        
-        # Test direct access to known secrets
-        test_keys = ["openai_api_key", "pinecone_api_key", "pinecone_environment", "pinecone_index_name"]
-        for test_key in test_keys:
-            try:
-                value = st.secrets[test_key]
-                if isinstance(value, str) and len(value) > 8:
-                    st.write(f"- {test_key}: ✅ Found ({value[:8]}...)")
-                else:
-                    st.write(f"- {test_key}: ✅ Found ({value})")
-            except KeyError:
-                st.write(f"- {test_key}: ❌ Not found")
-            except Exception as e:
-                st.write(f"- {test_key}: ❌ Error: {e}")
-                
-        # Test our function
-        st.write("Testing get_secret_value:")
-        for key in ["OPENAI_API_KEY", "openai_api_key", "PINECONE_API_KEY", "pinecone_api_key"]:
-            result = get_secret_value(key)
-            if result:
-                st.write(f"- get_secret_value('{key}'): ✅ Found ({result[:8]}...)")
-            else:
-                st.write(f"- get_secret_value('{key}'): ❌ Not found")
-            
-except Exception as e:
-    st.write(f"Error accessing secrets: {e}")
-
-st.markdown("---")
-
 # Try to get OpenAI API key from Streamlit secrets first
 openai_api_key = get_secret_value("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
 if not openai_api_key:
