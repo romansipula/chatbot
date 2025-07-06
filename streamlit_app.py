@@ -22,17 +22,33 @@ st.set_page_config(page_title="HR Support Chatbot", page_icon="💼", layout="ce
 st.markdown("## 🔍 DEBUG INFO (REMOVE AFTER TESTING)")
 st.markdown("### Streamlit Secrets:")
 try:
-    st.write("Available secrets keys:", list(st.secrets.keys()) if st.secrets else "No secrets available")
-    for key in st.secrets.keys():
-        value = st.secrets.get(key, "NOT FOUND")
-        # Mask sensitive values for display
-        if key.upper().endswith('_KEY'):
-            masked_value = f"{value[:8]}..." if len(value) > 8 else "SHORT_KEY"
-        else:
-            masked_value = value
-        st.write(f"- {key}: {masked_value}")
+    # Check if we have any secrets at all
+    secrets_dict = dict(st.secrets) if hasattr(st.secrets, '__iter__') else {}
+    st.write("Secrets object type:", type(st.secrets))
+    st.write("Available secrets keys:", list(secrets_dict.keys()) if secrets_dict else "No secrets available")
+    
+    # Try different ways to access secrets
+    st.write("Direct access attempts:")
+    for key in ["OPENAI_API_KEY", "PINECONE_API_KEY", "PINECONE_ENVIRONMENT", "PINECONE_INDEX_NAME"]:
+        try:
+            # Method 1: Direct attribute access
+            value1 = getattr(st.secrets, key, None)
+            # Method 2: Dictionary-style access
+            value2 = st.secrets.get(key, None)
+            # Method 3: Try lowercase
+            value3 = st.secrets.get(key.lower(), None)
+            
+            st.write(f"- {key}:")
+            st.write(f"  - Attribute access: {'✅ Found' if value1 else '❌ Not found'}")
+            st.write(f"  - Dict access: {'✅ Found' if value2 else '❌ Not found'}")
+            st.write(f"  - Lowercase: {'✅ Found' if value3 else '❌ Not found'}")
+            
+        except Exception as e:
+            st.write(f"- {key}: Error - {e}")
+            
 except Exception as e:
     st.error(f"Error reading secrets: {e}")
+    st.write("Secrets object:", st.secrets)
 
 st.markdown("### Environment Variables:")
 env_vars = ["OPENAI_API_KEY", "PINECONE_API_KEY", "PINECONE_ENVIRONMENT", "PINECONE_INDEX_NAME"]
@@ -48,11 +64,56 @@ for var in env_vars:
         st.write(f"- {var}: NOT SET")
 
 st.markdown("### Combined Values (secrets OR env):")
+
+def get_secret_value(key):
+    """Try multiple ways to get a secret value from Streamlit Cloud."""
+    try:
+        # Method 1: Direct attribute access (common in Streamlit Cloud)
+        if hasattr(st.secrets, key):
+            return getattr(st.secrets, key)
+        
+        # Method 2: Dictionary-style access
+        if hasattr(st.secrets, 'get') and st.secrets.get(key):
+            return st.secrets.get(key)
+            
+        # Method 3: Try lowercase version
+        if hasattr(st.secrets, key.lower()):
+            return getattr(st.secrets, key.lower())
+            
+        # Method 4: Check if secrets is iterable and search
+        if hasattr(st.secrets, '__iter__'):
+            for secret_key in st.secrets:
+                if secret_key.upper() == key.upper():
+                    return st.secrets[secret_key]
+                    
+    except Exception as e:
+        st.write(f"Error accessing secret {key}: {e}")
+    
+    return None
+
+st.markdown("### 📋 How to Configure Secrets in Streamlit Cloud:")
+st.markdown("""
+**For Streamlit Cloud deployment, add these secrets in your app settings:**
+
+```toml
+OPENAI_API_KEY = "your-openai-api-key"
+PINECONE_API_KEY = "your-pinecone-api-key"
+PINECONE_ENVIRONMENT = "your-pinecone-environment"
+PINECONE_INDEX_NAME = "your-pinecone-index-name"
+```
+
+**Steps:**
+1. Go to your Streamlit Cloud app
+2. Click on the gear icon (⚙️) for settings
+3. Go to the "Secrets" tab
+4. Add the above configuration with your actual values
+""")
+
 combined_values = {
-    "OPENAI_API_KEY": st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY"),
-    "PINECONE_API_KEY": st.secrets.get("PINECONE_API_KEY") or os.getenv("PINECONE_API_KEY"),
-    "PINECONE_ENVIRONMENT": st.secrets.get("PINECONE_ENVIRONMENT") or os.getenv("PINECONE_ENVIRONMENT"),
-    "PINECONE_INDEX_NAME": st.secrets.get("PINECONE_INDEX_NAME") or os.getenv("PINECONE_INDEX_NAME")
+    "OPENAI_API_KEY": get_secret_value("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY"),
+    "PINECONE_API_KEY": get_secret_value("PINECONE_API_KEY") or os.getenv("PINECONE_API_KEY"),
+    "PINECONE_ENVIRONMENT": get_secret_value("PINECONE_ENVIRONMENT") or os.getenv("PINECONE_ENVIRONMENT"),
+    "PINECONE_INDEX_NAME": get_secret_value("PINECONE_INDEX_NAME") or os.getenv("PINECONE_INDEX_NAME")
 }
 for key, value in combined_values.items():
     if value:
@@ -72,7 +133,7 @@ Welcome to your HR assistant. Ask any questions about employee benefits, policie
 """)
 
 # Try to get OpenAI API key from Streamlit secrets first
-openai_api_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+openai_api_key = get_secret_value("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
 if not openai_api_key:
     st.warning("⚠️ OpenAI API key not found in secrets or environment variables")
     openai_api_key = st.text_input("OpenAI API Key", type="password")
@@ -86,9 +147,9 @@ else:
     client = OpenAI(api_key=openai_api_key)
 
     # Load credentials from Streamlit secrets or environment
-    pinecone_api_key = st.secrets.get("PINECONE_API_KEY") or os.getenv("PINECONE_API_KEY")
-    pinecone_env     = st.secrets.get("PINECONE_ENVIRONMENT") or os.getenv("PINECONE_ENVIRONMENT")
-    pinecone_index   = st.secrets.get("PINECONE_INDEX_NAME") or os.getenv("PINECONE_INDEX_NAME")
+    pinecone_api_key = get_secret_value("PINECONE_API_KEY") or os.getenv("PINECONE_API_KEY")
+    pinecone_env     = get_secret_value("PINECONE_ENVIRONMENT") or os.getenv("PINECONE_ENVIRONMENT")
+    pinecone_index   = get_secret_value("PINECONE_INDEX_NAME") or os.getenv("PINECONE_INDEX_NAME")
 
     # DEBUG: Show what we found
     st.markdown("### 🔍 Pinecone Credentials Debug:")
