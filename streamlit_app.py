@@ -33,17 +33,24 @@ else:
     # Create an OpenAI client.
     client = OpenAI(api_key=openai_api_key)
 
-    # Initialize Pinecone
-    pc = Pinecone(
-        api_key=st.secrets.get("PINECONE_API_KEY") or os.getenv("PINECONE_API_KEY")
-    )
+    # Initialize Pinecone with proper API key handling
+    pinecone_api_key = st.secrets.get("PINECONE_API_KEY") or os.getenv("PINECONE_API_KEY")
+    if not pinecone_api_key:
+        st.error("❌ Pinecone API key not found. Please set PINECONE_API_KEY in your environment or Streamlit secrets.")
+        st.stop()
+    
+    pc = Pinecone(api_key=pinecone_api_key)
 
     # Connect to Pinecone vector store
+    index_name = st.secrets.get("PINECONE_INDEX_NAME") or os.getenv("PINECONE_INDEX_NAME")
+    if not index_name:
+        st.error("❌ Pinecone index name not found. Please set PINECONE_INDEX_NAME in your environment or Streamlit secrets.")
+        st.stop()
+    
     vectorstore = PineconeVectorStore(
-        index_name=st.secrets.get("PINECONE_INDEX_NAME") or os.getenv("PINECONE_INDEX_NAME"),
+        index_name=index_name,
         namespace="employees",
-        embedding=OpenAIEmbeddings(),
-        pinecone_index=pc.Index(st.secrets.get("PINECONE_INDEX_NAME") or os.getenv("PINECONE_INDEX_NAME"))
+        embedding=OpenAIEmbeddings()
     )
 
     def get_context_from_pinecone(query: str, top_k: int = 3) -> str:
