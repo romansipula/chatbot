@@ -1,4 +1,0 @@
-# Telekom HR Default RAG Data
-
-Welcome to Telekom HR! Here are some key facts and policies:
-

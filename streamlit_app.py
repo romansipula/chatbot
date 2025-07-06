@@ -149,51 +149,25 @@ else:
             st.sidebar.error(f"❌ Error retrieving from Pinecone: {e}")
             return ""
 
-    def populate_pinecone_if_empty():
-        """Populate Pinecone with default HR data if the index is empty."""
+    def check_pinecone_status():
+        """Check if Pinecone has documents and show status."""
         try:
             # Check if there are any documents in the vectorstore
             test_docs = vectorstore.similarity_search("test", k=1)
-            if not test_docs:
-                # Index is empty, populate with default HR data
-                with open("default_hr_data.txt", "r", encoding="utf-8") as f:
-                    default_text = f.read()
-                
-                st.sidebar.info(f"📄 Default HR data loaded: {len(default_text)} characters")
-                
-                chunks = chunk_text(default_text)
-                if chunks:
-                    st.sidebar.info(f"📋 Split into {len(chunks)} chunks")
-                    
-                    # Show first chunk for debugging
-                    st.sidebar.info(f"📝 First chunk preview: {chunks[0][:100]}...")
-                    
-                    # Add documents to Pinecone
-                    from langchain.schema import Document
-                    documents = [Document(page_content=chunk) for chunk in chunks]
-                    vectorstore.add_documents(documents)
-                    st.sidebar.success(f"✅ Populated Pinecone with {len(chunks)} HR document chunks")
-                    
-                    # Verify the data was added
-                    verify_docs = vectorstore.similarity_search("bicycle", k=1)
-                    if verify_docs:
-                        st.sidebar.success(f"✅ Verification: Found bicycle-related content")
-                    else:
-                        st.sidebar.warning("⚠️ Verification: No bicycle content found after adding")
-                    
-                    return True
-                else:
-                    st.sidebar.error("❌ No chunks created from default HR data")
+            if test_docs:
+                st.sidebar.info(f"📄 Pinecone has {len(test_docs)} documents available")
+                return True
             else:
-                st.sidebar.info(f"📄 Pinecone already has {len(test_docs)} documents")
-            return False
+                st.sidebar.warning("⚠️ Pinecone index is empty. Upload a file to add HR data.")
+                return False
         except Exception as e:
-            st.sidebar.error(f"❌ Error populating Pinecone: {e}")
+            st.sidebar.error(f"❌ Error checking Pinecone status: {e}")
             return False
 
-    # Populate Pinecone with default data if empty
-    if st.sidebar.button("Populate Pinecone with Default HR Data"):
-        populate_pinecone_if_empty()
+    # Check Pinecone status on startup
+    check_pinecone_status()
+    
+    # Populate Pinecone button is removed since we only use uploaded data now
     
     # Clear Pinecone index
     if st.sidebar.button("Clear Pinecone Index", type="secondary"):
@@ -218,6 +192,7 @@ else:
 
     # File uploader for knowledge source
     st.sidebar.header("Knowledge Source (RAG)")
+    st.sidebar.info("💡 The chatbot uses data already stored in Pinecone. Use the buttons below to check what's available or upload new files.")
     
     # Pinecone connection health check
     if st.sidebar.button("Test Pinecone Connection"):
@@ -280,13 +255,8 @@ else:
         else:
             st.error("Failed to load file content.")
     else:
-        # Default HR data - using Pinecone for retrieval
-        with open("default_hr_data.txt", "r", encoding="utf-8") as f:
-            file_text = f.read()
-        chunks = chunk_text(file_text)
-        # TODO: Store default chunks in Pinecone vectorstore
-        # For now, just show info message
-        st.info("Using Pinecone for HR data retrieval. Upload your own file to add custom content.")
+        # No file uploaded - rely on existing Pinecone data
+        st.info("Using existing Pinecone data for HR information retrieval. Upload your own file to add more content.")
 
     # Load mock employee DB into session state
     @st.cache_data
