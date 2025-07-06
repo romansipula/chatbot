@@ -17,6 +17,55 @@ with open("telekom_theme.css") as f:
 
 # Professional HR Chatbot UI
 st.set_page_config(page_title="HR Support Chatbot", page_icon="💼", layout="centered")
+
+# DEBUG: Show all API keys and environment variables (REMOVE AFTER TESTING)
+st.markdown("## 🔍 DEBUG INFO (REMOVE AFTER TESTING)")
+st.markdown("### Streamlit Secrets:")
+try:
+    st.write("Available secrets keys:", list(st.secrets.keys()) if st.secrets else "No secrets available")
+    for key in st.secrets.keys():
+        value = st.secrets.get(key, "NOT FOUND")
+        # Mask sensitive values for display
+        if key.upper().endswith('_KEY'):
+            masked_value = f"{value[:8]}..." if len(value) > 8 else "SHORT_KEY"
+        else:
+            masked_value = value
+        st.write(f"- {key}: {masked_value}")
+except Exception as e:
+    st.error(f"Error reading secrets: {e}")
+
+st.markdown("### Environment Variables:")
+env_vars = ["OPENAI_API_KEY", "PINECONE_API_KEY", "PINECONE_ENVIRONMENT", "PINECONE_INDEX_NAME"]
+for var in env_vars:
+    value = os.getenv(var)
+    if value:
+        if var.endswith('_KEY'):
+            masked_value = f"{value[:8]}..." if len(value) > 8 else "SHORT_KEY"
+        else:
+            masked_value = value
+        st.write(f"- {var}: {masked_value}")
+    else:
+        st.write(f"- {var}: NOT SET")
+
+st.markdown("### Combined Values (secrets OR env):")
+combined_values = {
+    "OPENAI_API_KEY": st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY"),
+    "PINECONE_API_KEY": st.secrets.get("PINECONE_API_KEY") or os.getenv("PINECONE_API_KEY"),
+    "PINECONE_ENVIRONMENT": st.secrets.get("PINECONE_ENVIRONMENT") or os.getenv("PINECONE_ENVIRONMENT"),
+    "PINECONE_INDEX_NAME": st.secrets.get("PINECONE_INDEX_NAME") or os.getenv("PINECONE_INDEX_NAME")
+}
+for key, value in combined_values.items():
+    if value:
+        if key.endswith('_KEY'):
+            masked_value = f"{value[:8]}..." if len(value) > 8 else "SHORT_KEY"
+        else:
+            masked_value = value
+        st.write(f"- {key}: {masked_value}")
+    else:
+        st.write(f"- {key}: NOT FOUND")
+
+st.markdown("---")
+
 st.markdown("""
 # 💼 HR Support Chatbot
 Welcome to your HR assistant. Ask any questions about employee benefits, policies, leave, payroll, or other HR topics. Upload your HR handbook or policy documents in the sidebar to get answers based on your company's own information.
@@ -25,10 +74,13 @@ Welcome to your HR assistant. Ask any questions about employee benefits, policie
 # Try to get OpenAI API key from Streamlit secrets first
 openai_api_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
 if not openai_api_key:
+    st.warning("⚠️ OpenAI API key not found in secrets or environment variables")
     openai_api_key = st.text_input("OpenAI API Key", type="password")
 if not openai_api_key:
     st.info("Please add your OpenAI API key to continue.", icon="🗝️")
+    st.stop()
 else:
+    st.success(f"✅ OpenAI API key loaded: {openai_api_key[:8]}...")
 
     # Create an OpenAI client.
     client = OpenAI(api_key=openai_api_key)
@@ -38,9 +90,17 @@ else:
     pinecone_env     = st.secrets.get("PINECONE_ENVIRONMENT") or os.getenv("PINECONE_ENVIRONMENT")
     pinecone_index   = st.secrets.get("PINECONE_INDEX_NAME") or os.getenv("PINECONE_INDEX_NAME")
 
+    # DEBUG: Show what we found
+    st.markdown("### 🔍 Pinecone Credentials Debug:")
+    st.write(f"- API Key: {'✅ Found' if pinecone_api_key else '❌ Missing'}")
+    st.write(f"- Environment: {'✅ Found' if pinecone_env else '❌ Missing'} ({pinecone_env})")
+    st.write(f"- Index Name: {'✅ Found' if pinecone_index else '❌ Missing'} ({pinecone_index})")
+
     if not pinecone_api_key or not pinecone_env or not pinecone_index:
         st.error("❌ Pinecone credentials not found. Set PINECONE_API_KEY, PINECONE_ENVIRONMENT, and PINECONE_INDEX_NAME in your environment or Streamlit secrets.")
         st.stop()
+
+    st.success("✅ All Pinecone credentials loaded successfully!")
 
     from pinecone import Pinecone, ServerlessSpec
     from langchain_pinecone import PineconeVectorStore
