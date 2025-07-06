@@ -62,6 +62,37 @@ st.markdown("""
 Welcome to your HR assistant. Ask any questions about employee benefits, policies, leave, payroll, or other HR topics. Upload your HR handbook or policy documents in the sidebar to get answers based on your company's own information.
 """)
 
+# DEBUG: Let's see what's actually available in secrets
+st.markdown("## 🔍 DEBUG: Secrets Detection")
+try:
+    st.write("Secrets available:", hasattr(st, 'secrets'))
+    if hasattr(st, 'secrets'):
+        try:
+            secrets_dict = dict(st.secrets)
+            st.write("Available secret keys:", list(secrets_dict.keys()))
+            st.write("Number of secrets:", len(secrets_dict))
+            
+            # Show what each key contains (masked for security)
+            for key in secrets_dict.keys():
+                value = secrets_dict[key]
+                if isinstance(value, str) and len(value) > 8:
+                    st.write(f"- {key}: {value[:8]}...")
+                else:
+                    st.write(f"- {key}: {value}")
+        except Exception as e:
+            st.write(f"Error reading secrets dict: {e}")
+            
+        # Test our function
+        st.write("Testing get_secret_value:")
+        for key in ["OPENAI_API_KEY", "openai_api_key", "PINECONE_API_KEY", "pinecone_api_key"]:
+            result = get_secret_value(key)
+            st.write(f"- get_secret_value('{key}'): {'✅ Found' if result else '❌ Not found'}")
+            
+except Exception as e:
+    st.write(f"Error accessing secrets: {e}")
+
+st.markdown("---")
+
 # Try to get OpenAI API key from Streamlit secrets first
 openai_api_key = get_secret_value("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
 if not openai_api_key:
