@@ -35,13 +35,13 @@ else:
 
     # Initialize Pinecone
     pinecone.init(
-        api_key=st.secrets["PINECONE_API_KEY"],
-        environment=st.secrets["PINECONE_ENVIRONMENT"]
+        api_key=st.secrets.get("PINECONE_API_KEY") or os.getenv("PINECONE_API_KEY"),
+        environment=st.secrets.get("PINECONE_ENVIRONMENT") or os.getenv("PINECONE_ENVIRONMENT")
     )
 
     # Connect to Pinecone vector store
     vectorstore = PineconeVectorStore(
-        index_name=st.secrets["PINECONE_INDEX_NAME"],
+        index_name=st.secrets.get("PINECONE_INDEX_NAME") or os.getenv("PINECONE_INDEX_NAME"),
         namespace="employees",
         embedding=OpenAIEmbeddings()
     )
