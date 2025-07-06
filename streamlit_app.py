@@ -21,25 +21,34 @@ st.set_page_config(page_title="HR Support Chatbot", page_icon="💼", layout="ce
 # Load configuration
 def get_secret_value(key):
     """
-    Get secret value from Streamlit secrets with comprehensive fallback handling.
+    Get secret value from Streamlit Cloud secrets or environment variables.
     Streamlit Cloud typically provides lowercase keys, so we check that first.
     """
     # Try lowercase first (Streamlit Cloud format), then uppercase
     keys_to_try = [key.lower(), key]
     
-    for test_key in keys_to_try:
-        try:
-            # Try attribute access first (most common)
-            value = getattr(st.secrets, test_key, None)
-            if value and str(value).strip():
-                return str(value).strip()
-            
-            # Try dict-style access
-            value = st.secrets.get(test_key)
-            if value and str(value).strip():
-                return str(value).strip()
-        except (KeyError, AttributeError):
-            continue
+    # Only try to access secrets if they exist (avoid StreamlitSecretNotFoundError)
+    try:
+        # Check if secrets are available at all
+        if hasattr(st, 'secrets'):
+            for test_key in keys_to_try:
+                try:
+                    # Try attribute access first (most common)
+                    if hasattr(st.secrets, test_key):
+                        value = getattr(st.secrets, test_key, None)
+                        if value and str(value).strip():
+                            return str(value).strip()
+                    
+                    # Try dict-style access
+                    if hasattr(st.secrets, 'get'):
+                        value = st.secrets.get(test_key)
+                        if value and str(value).strip():
+                            return str(value).strip()
+                except (KeyError, AttributeError):
+                    continue
+    except Exception:
+        # If secrets are not available at all, just continue to env variables
+        pass
     
     # If not found in secrets, try environment variables
     env_value = os.getenv(key) or os.getenv(key.lower())
@@ -109,11 +118,15 @@ else:
     index = pc.Index(pinecone_index)
 
     # Connect LangChain vector store
-    vectorstore = PineconeVectorStore(
-        index=index,
-        embedding=OpenAIEmbeddings(),
-        namespace="employees"
-    )
+    try:
+        vectorstore = PineconeVectorStore(
+            index=index,
+            embedding=OpenAIEmbeddings(api_key=openai_api_key),
+            namespace="employees"
+        )
+    except Exception as e:
+        st.error(f"❌ Failed to initialize vector store: {e}")
+        st.stop()
 
     def get_context_from_pinecone(query: str, top_k: int = 3) -> str:
         """Retrieve and concatenate the top_k matching document chunks from Pinecone."""
