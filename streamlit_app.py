@@ -22,32 +22,23 @@ st.set_page_config(page_title="HR Support Chatbot", page_icon="💼", layout="ce
 def get_secret_value(key):
     """
     Get secret value from Streamlit Cloud secrets or environment variables.
-    Streamlit Cloud typically provides lowercase keys, so we check that first.
+    Streamlit Cloud provides secrets directly, not through files.
     """
     # Try lowercase first (Streamlit Cloud format), then uppercase
     keys_to_try = [key.lower(), key]
     
-    # Only try to access secrets if they exist (avoid StreamlitSecretNotFoundError)
+    # Access Streamlit Cloud secrets directly
     try:
-        # Check if secrets are available at all
-        if hasattr(st, 'secrets'):
-            for test_key in keys_to_try:
-                try:
-                    # Try attribute access first (most common)
-                    if hasattr(st.secrets, test_key):
-                        value = getattr(st.secrets, test_key, None)
-                        if value and str(value).strip():
-                            return str(value).strip()
-                    
-                    # Try dict-style access
-                    if hasattr(st.secrets, 'get'):
-                        value = st.secrets.get(test_key)
-                        if value and str(value).strip():
-                            return str(value).strip()
-                except (KeyError, AttributeError):
-                    continue
+        for test_key in keys_to_try:
+            try:
+                # Direct access to secrets using square bracket notation
+                value = st.secrets[test_key]
+                if value and str(value).strip():
+                    return str(value).strip()
+            except (KeyError, AttributeError):
+                continue
     except Exception:
-        # If secrets are not available at all, just continue to env variables
+        # If secrets access fails, continue to environment variables
         pass
     
     # If not found in secrets, try environment variables
@@ -67,26 +58,30 @@ st.markdown("## 🔍 DEBUG: Secrets Detection")
 try:
     st.write("Secrets available:", hasattr(st, 'secrets'))
     if hasattr(st, 'secrets'):
-        try:
-            secrets_dict = dict(st.secrets)
-            st.write("Available secret keys:", list(secrets_dict.keys()))
-            st.write("Number of secrets:", len(secrets_dict))
-            
-            # Show what each key contains (masked for security)
-            for key in secrets_dict.keys():
-                value = secrets_dict[key]
+        st.write("Testing direct access to individual secrets:")
+        
+        # Test direct access to known secrets
+        test_keys = ["openai_api_key", "pinecone_api_key", "pinecone_environment", "pinecone_index_name"]
+        for test_key in test_keys:
+            try:
+                value = st.secrets[test_key]
                 if isinstance(value, str) and len(value) > 8:
-                    st.write(f"- {key}: {value[:8]}...")
+                    st.write(f"- {test_key}: ✅ Found ({value[:8]}...)")
                 else:
-                    st.write(f"- {key}: {value}")
-        except Exception as e:
-            st.write(f"Error reading secrets dict: {e}")
-            
+                    st.write(f"- {test_key}: ✅ Found ({value})")
+            except KeyError:
+                st.write(f"- {test_key}: ❌ Not found")
+            except Exception as e:
+                st.write(f"- {test_key}: ❌ Error: {e}")
+                
         # Test our function
         st.write("Testing get_secret_value:")
         for key in ["OPENAI_API_KEY", "openai_api_key", "PINECONE_API_KEY", "pinecone_api_key"]:
             result = get_secret_value(key)
-            st.write(f"- get_secret_value('{key}'): {'✅ Found' if result else '❌ Not found'}")
+            if result:
+                st.write(f"- get_secret_value('{key}'): ✅ Found ({result[:8]}...)")
+            else:
+                st.write(f"- get_secret_value('{key}'): ❌ Not found")
             
 except Exception as e:
     st.write(f"Error accessing secrets: {e}")
