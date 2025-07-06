@@ -1,0 +1,8 @@
+# Streamlit Cloud Configuration
+
+python = "3.11"
+
+[tool.streamlit]
+server.headless = true
+server.fileWatcherType = "none"
+browser.gatherUsageStats = false

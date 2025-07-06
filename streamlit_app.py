@@ -66,6 +66,44 @@ else:
         docs = vectorstore.similarity_search(query, k=top_k)
         return "\n\n".join([doc.page_content for doc in docs])
 
+    def populate_pinecone_if_empty():
+        """Populate Pinecone with default HR data if the index is empty."""
+        try:
+            # Check if there are any documents in the vectorstore
+            test_docs = vectorstore.similarity_search("test", k=1)
+            if not test_docs:
+                # Index is empty, populate with default HR data
+                with open("default_hr_data.txt", "r", encoding="utf-8") as f:
+                    default_text = f.read()
+                
+                chunks = chunk_text(default_text)
+                if chunks:
+                    # Add documents to Pinecone
+                    from langchain.schema import Document
+                    documents = [Document(page_content=chunk) for chunk in chunks]
+                    vectorstore.add_documents(documents)
+                    st.sidebar.success(f"✅ Populated Pinecone with {len(chunks)} HR document chunks")
+                    return True
+            return False
+        except Exception as e:
+            st.sidebar.error(f"❌ Error populating Pinecone: {e}")
+            return False
+
+    # Populate Pinecone with default data if empty
+    if st.sidebar.button("Populate Pinecone with Default HR Data"):
+        populate_pinecone_if_empty()
+    
+    # Clear Pinecone index
+    if st.sidebar.button("Clear Pinecone Index", type="secondary"):
+        try:
+            # Get the raw Pinecone index
+            index = pc.Index(index_name)
+            # Delete all vectors in the namespace
+            index.delete(delete_all=True, namespace="employees")
+            st.sidebar.success("✅ Pinecone index cleared successfully")
+        except Exception as e:
+            st.sidebar.error(f"❌ Error clearing Pinecone index: {e}")
+
     # Create a session state variable to store the chat messages. This ensures that the
     # messages persist across reruns.
     if "messages" not in st.session_state:
@@ -106,11 +144,18 @@ else:
             file_text = None
 
         if file_text:
-            # File loaded successfully - Pinecone integration would store chunks here
+            # File loaded successfully - Store chunks in Pinecone
             chunks = chunk_text(file_text)
-            # TODO: Store chunks in Pinecone vectorstore
-            # For now, just show success message
-            st.success(f"File loaded: {len(chunks)} chunks. Using Pinecone for retrieval.")
+            if chunks:
+                from langchain.schema import Document
+                documents = [Document(page_content=chunk) for chunk in chunks]
+                try:
+                    vectorstore.add_documents(documents)
+                    st.success(f"✅ File uploaded and stored in Pinecone: {len(chunks)} chunks added.")
+                except Exception as e:
+                    st.error(f"❌ Error storing file in Pinecone: {e}")
+            else:
+                st.error("No content chunks extracted from the file.")
         else:
             st.error("Failed to load file content.")
     else:
@@ -254,7 +299,7 @@ else:
             *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
         ]
         stream = client.chat.completions.create(
-            model="gpt-4.1",
+            model="gpt-4",
             messages=messages,
             stream=True,
         )
