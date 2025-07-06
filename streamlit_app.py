@@ -110,14 +110,44 @@ else:
 
     # Connect LangChain vector store
     try:
+        # First try with default namespace (empty string)
         vectorstore = PineconeVectorStore(
             index=index,
             embedding=OpenAIEmbeddings(api_key=openai_api_key),
-            namespace="employees"
+            namespace=""  # Try default namespace first
         )
+        st.sidebar.success("✅ Connected to Pinecone (default namespace)")
     except Exception as e:
         st.error(f"❌ Failed to initialize vector store: {e}")
         st.stop()
+
+    # Add namespace debugging
+    if st.sidebar.button("Debug Pinecone Namespaces"):
+        try:
+            # Get index stats to see what namespaces exist
+            stats = index.describe_index_stats()
+            st.sidebar.write("📊 Index Statistics:")
+            st.sidebar.json(stats)
+            
+            # Try searching in different namespaces
+            namespaces_to_try = ["", "employees", "default"]
+            for ns in namespaces_to_try:
+                try:
+                    test_vectorstore = PineconeVectorStore(
+                        index=index,
+                        embedding=OpenAIEmbeddings(api_key=openai_api_key),
+                        namespace=ns
+                    )
+                    results = test_vectorstore.similarity_search("test", k=1)
+                    ns_display = ns if ns else "default"
+                    if results:
+                        st.sidebar.success(f"✅ Found {len(results)} docs in namespace '{ns_display}'")
+                    else:
+                        st.sidebar.info(f"📭 No docs in namespace '{ns_display}'")
+                except Exception as e:
+                    st.sidebar.error(f"❌ Error with namespace '{ns}': {e}")
+        except Exception as e:
+            st.sidebar.error(f"❌ Error debugging namespaces: {e}")
 
     def get_context_from_pinecone(query: str, top_k: int = 3) -> str:
         """Retrieve and concatenate the top_k matching document chunks from Pinecone."""
@@ -152,13 +182,30 @@ else:
     def check_pinecone_status():
         """Check if Pinecone has documents and show status."""
         try:
-            # Check if there are any documents in the vectorstore
+            # Check current namespace
             test_docs = vectorstore.similarity_search("test", k=1)
             if test_docs:
-                st.sidebar.info(f"📄 Pinecone has {len(test_docs)} documents available")
+                st.sidebar.success(f"✅ Pinecone has {len(test_docs)} documents available")
                 return True
             else:
-                st.sidebar.warning("⚠️ Pinecone index is empty. Upload a file to add HR data.")
+                st.sidebar.warning("⚠️ No documents found in current namespace")
+                
+                # Try checking other namespaces
+                namespaces_to_try = ["", "employees", "default"]
+                for ns in namespaces_to_try:
+                    try:
+                        test_vectorstore = PineconeVectorStore(
+                            index=index,
+                            embedding=OpenAIEmbeddings(api_key=openai_api_key),
+                            namespace=ns
+                        )
+                        ns_docs = test_vectorstore.similarity_search("test", k=1)
+                        ns_display = ns if ns else "default"
+                        if ns_docs:
+                            st.sidebar.info(f"📄 Found {len(ns_docs)} docs in namespace '{ns_display}'")
+                    except Exception:
+                        pass
+                
                 return False
         except Exception as e:
             st.sidebar.error(f"❌ Error checking Pinecone status: {e}")
@@ -218,11 +265,56 @@ else:
                         st.text(doc.page_content)
                         st.write("---")
             else:
-                st.sidebar.warning("⚠️ No documents found in Pinecone")
-                # If no documents, check if we need to populate
-                st.sidebar.info("🔄 Try clicking 'Populate Pinecone with Default HR Data' first")
+                st.sidebar.warning("⚠️ No documents found in current namespace")
+                # Try other namespaces
+                namespaces_to_try = ["", "employees", "default"]
+                for ns in namespaces_to_try:
+                    try:
+                        test_vectorstore = PineconeVectorStore(
+                            index=index,
+                            embedding=OpenAIEmbeddings(api_key=openai_api_key),
+                            namespace=ns
+                        )
+                        ns_docs = test_vectorstore.similarity_search("telekom hr policy benefits", k=10)
+                        ns_display = ns if ns else "default"
+                        if ns_docs:
+                            st.sidebar.success(f"✅ Found {len(ns_docs)} documents in namespace '{ns_display}'")
+                            with st.sidebar.expander(f"� Documents in '{ns_display}' namespace"):
+                                for i, doc in enumerate(ns_docs):
+                                    st.write(f"**Document {i+1}:**")
+                                    st.text(doc.page_content)
+                                    st.write("---")
+                    except Exception:
+                        pass
         except Exception as e:
-            st.sidebar.error(f"❌ Error checking Pinecone data: {e}")
+            st.sidebar.error(f"❌ Error retrieving Pinecone data: {e}")
+    
+    # Add namespace switcher
+    if st.sidebar.button("Switch to Default Namespace"):
+        try:
+            # Reinitialize vectorstore with default namespace
+            vectorstore = PineconeVectorStore(
+                index=index,
+                embedding=OpenAIEmbeddings(api_key=openai_api_key),
+                namespace=""
+            )
+            st.sidebar.success("✅ Switched to default namespace")
+            st.experimental_rerun()
+        except Exception as e:
+            st.sidebar.error(f"❌ Error switching namespace: {e}")
+    
+    if st.sidebar.button("Switch to 'employees' Namespace"):
+        try:
+            # Reinitialize vectorstore with employees namespace
+            vectorstore = PineconeVectorStore(
+                index=index,
+                embedding=OpenAIEmbeddings(api_key=openai_api_key),
+                namespace="employees"
+            )
+            st.sidebar.success("✅ Switched to 'employees' namespace")
+            st.experimental_rerun()
+        except Exception as e:
+            st.sidebar.error(f"❌ Error switching namespace: {e}")
     
     rag_file = st.sidebar.file_uploader("Upload a TXT, PDF, or DOCX file for RAG", type=["txt", "pdf", "docx"])
 
